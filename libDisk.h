@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include <fcntl.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include "tinyFS_errno.h"
 
 #define BLOCKSIZE 256
