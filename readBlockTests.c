@@ -3,16 +3,25 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <assert.h>
+#include <string.h>
 
 #include "readBlock.h"
 
 int main(int argc, char *argv[])
 {
-    int testFile = open("disk1.dsk", O_RDWR);
+    int testFile = open("test.dsk", O_RDWR);
+    int compFile = open("test.dsk", O_RDWR);
     char *buff = (char *) malloc(sizeof(char) * BLOCKSIZE);
-    readBlock(testFile, 1, (void *)buff);
+    char *buff2 = (char *) malloc(sizeof(char) * BLOCKSIZE);
 
-    printf("%s\n", buff);
+    read(compFile, buff2, BLOCKSIZE);
+    assert(readBlock(testFile, 0, (void *)buff) == 0);
+
+    read(compFile, buff2, BLOCKSIZE);
+    assert(readBlock(testFile, 1, (void *)buff) == 0);
+
+    
+    assert(strcmp(buff, buff2) == 0);
 
     // Checking for bad file number reads
 
@@ -24,7 +33,7 @@ int main(int argc, char *argv[])
 
     // Bad read
 
-    
+
     printf("Tests passed.\n");
     return 0;
 }
