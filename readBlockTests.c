@@ -7,8 +7,7 @@
 
 #include "readBlock.h"
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     int testFile = open("test.dsk", O_RDWR);
     int compFile = open("test.dsk", O_RDWR);
     char *buff = (char *) malloc(sizeof(char) * BLOCKSIZE);
