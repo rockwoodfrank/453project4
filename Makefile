@@ -14,3 +14,9 @@ libTinyFS.o: libTinyFS.c libTinyFS.h tinyFS.h libDisk.h libDisk.o TinyFS_errno.h
 
 libDisk.o: libDisk.c libDisk.h tinyFS.h TinyFS_errno.h
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+readBlock.o: readBlock.c readBlock.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+test: readBlockTests.c readBlock.h readBlock.o 
+	$(CC) $(CFLAGS) -o test readBlock.o readBlockTests.c
