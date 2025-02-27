@@ -5,7 +5,7 @@
 #include <assert.h>
 #include <string.h>
 
-#include "readBlock.h"
+#include "libDisk.h"
 
 int main(int argc, char *argv[]) {
     int testFile = open("test.dsk", O_RDWR);
