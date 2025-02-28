@@ -13,7 +13,19 @@
 
 #define BLOCKSIZE 256
 
+/* This functions opens a regular UNIX file and designates the first
+nBytes of it as space for the emulated disk. If nBytes is not exactly a
+multiple of BLOCKSIZE then the disk size will be the closest multiple
+of BLOCKSIZE that is lower than nByte (but greater than 0) If nBytes is
+less than BLOCKSIZE failure should be returned. If nBytes > BLOCKSIZE
+and there is already a file by the given filename, that file’s content
+may be overwritten. If nBytes is 0, an existing disk is opened, and the
+content must not be overwritten in this function. There is no requirement
+to maintain integrity of any file content beyond nBytes. The return value
+is negative on failure or a disk number on success. */
 int openDisk(char *filename, int nBytes);
+
+/* Closes the disk */
 int closeDisk(int disk);
 
 /* readBlock() reads an entire block of BLOCKSIZE bytes from the open
@@ -27,7 +39,12 @@ disk, bNum=n is n*BLOCKSIZE bytes into the disk. On success, it returns
 opened) or any other failures. */
 int readBlock(int disk, int bNum, void *block);
 
-/* writes a <block> of bytes to the <disk> at the given block (bNum) */
+/* writeBlock() takes disk number ‘disk’ and logical block number ‘bNum’
+and writes the content of the buffer ‘block’ to that location. ‘block’
+must be integral with BLOCKSIZE. Just as in readBlock(), writeBlock()
+must translate the logical block bNum to the correct byte position in
+the file. On success, it returns 0. -1 or smaller is returned if disk
+is not available (i.e. hasn’t been opened) or any other failures. */
 int writeBlock(int disk, int bNum, void *block);
 
 #endif
