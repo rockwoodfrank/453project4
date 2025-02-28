@@ -1,6 +1,9 @@
 Rockwood Frank, Quincy Collinsworth, Sydney Lynch
 
 Instructions:
+run "make test" run all tests on the code. Currently it only points to the unit tests function, but if given the
+    proper input, Rocky can code up something that diffs the output of the other tests to the correct input if
+    that's something we want.
 
 
 Notes to Programmers:
