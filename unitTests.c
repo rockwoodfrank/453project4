@@ -6,8 +6,23 @@
 #include <string.h>
 
 #include "libDisk.h"
+#include "tinyFS.h"
+
+void libDiskTests();
+void tinyFSTests();
 
 int main(int argc, char *argv[]) {
+    // Testing libDisk
+    libDiskTests();
+
+    tinyFSTests();
+
+    printf("Tests passed.\n");
+    return 0;
+}
+
+void libDiskTests()
+{
     int testFile = open("test.dsk", O_RDWR);
     int compFile = open("test.dsk", O_RDWR);
     char *buff = (char *) malloc(sizeof(char) * BLOCKSIZE);
@@ -31,8 +46,10 @@ int main(int argc, char *argv[]) {
     // Bad lseek
 
     // Bad read
+}
 
-
-    printf("Tests passed.\n");
-    return 0;
+void tinyFSTests()
+{
+    char dummy = 'y';
+    tfs_mount(&dummy);
 }

@@ -1,5 +1,13 @@
 #include "tinyFS.h"
 
+// TODO: Move these to the header file?
+#include "libDisk.h"
+
+#include <stdlib.h>
+#include <stdio.h>
+
+tinyFS *mounted = NULL;
+
 int tfs_mkfs(char *filename, int nBytes) {
 
     /* open the disk */
@@ -17,17 +25,17 @@ int tfs_mkfs(char *filename, int nBytes) {
     }
 
     /* Buffer to write data to newly opened disk*/
-    uint8_t[BLOCKSIZE] buffer;
+    uint8_t buffer[BLOCKSIZE];
     memset(buffer, 0, BLOCKSIZE);
     
     /* Initialize free blocks */
     buffer[0] = 0x04;
-    buffer[1] = 0x44
+    buffer[1] = 0x44;
     buffer[2] = 0x02;
     for(int i=1; i< number_of_blocks; i++) {
 
         if(writeBlock(disk_descriptor, i, buffer) < 0) {
-            return -1
+            return -1;
         }
 
         /* If you aren't at the last block, link to the next free block */
@@ -47,9 +55,21 @@ int tfs_mkfs(char *filename, int nBytes) {
     buffer[4] = last_free_block;
 
     if(writeBlock(disk_descriptor, 0, buffer) < 0) {
-        return -1
+        return -1;
     }
+
+    // TODO: Change? Rocky added this so tests would pass
+    return 0;
 
 }
 
+int tfs_mount(char* diskname)
+{
+    printf("hello, world!\n");
+    return 0;
+}
 
+int tfs_unmount()
+{
+    return 0;
+}
