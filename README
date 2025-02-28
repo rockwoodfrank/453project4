@@ -4,3 +4,20 @@ TODO:
 - ask what is expected from us out of the manual error stuff
 > https://www.thegeekstuff.com/2010/10/linux-error-codes/
 
+STORAGE STRUCTURES:
+
+Superblock:
+Byte    Value
+0       1
+1       0x44
+2       Ptr to next free block
+3       Empty
+4+      inode addresses
+
+Inode:
+Byte    Value
+0       2
+1       0x44
+2       Blank
+3       Blank
+4       Direct Blocks to Data
