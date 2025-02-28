@@ -4,6 +4,12 @@ TODO:
 - ask what is expected from us out of the manual error stuff
 > https://www.thegeekstuff.com/2010/10/linux-error-codes/
 
+Notes to Programmers:
+Rocky is working on tfs_mount and tfs_unmount
+
+Questions:
+- Are we only mounting one system at a time?
+
 STORAGE STRUCTURES:
 
 Superblock:
