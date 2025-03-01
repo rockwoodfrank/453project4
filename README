@@ -1,21 +1,18 @@
 Rockwood Frank, Quincy Collinsworth, Sydney Lynch
 
 Instructions:
-run "make test" run all tests on the code. Currently it only points to the unit tests function, but if given the
-    proper input, Rocky can code up something that diffs the output of the other tests to the correct input if
-    that's something we want.
+run "make test" run all tests on the code. Shouldn't pass right now.
 
 
 Notes to Programmers:
 Rocky is working on tfs_mount and tfs_unmount
 Rocky will implement a global structure that will keep track of info on the mounted disk.
-unitTests.c was made, allowing for individual unit testing of each function for specific error codes or specific cases.
-Rocky will update unitTests if you give him a list of things that need to be tested for. I will also try to break your code in every possible way at some point.
+An all-in-one testing regime was added but needs to be completed. You can help with that if you want.
+Give Rocky a list of things you want to test for if you feel like it. I will be trying to break your code in every possible way. Be prepared.
 
 Questions:
 - ask what is expected from us out of the manual error stuff
 > https://www.thegeekstuff.com/2010/10/linux-error-codes/
-- Are we only mounting one system at a time?
 
 STORAGE STRUCTURES:
 

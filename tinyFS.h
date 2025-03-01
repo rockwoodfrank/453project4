@@ -10,7 +10,7 @@ possible values */
 #define DEFAULT_DISK_SIZE 10240
 
 /* use this name for a default emulated disk file name */
-#define DEFAULT_DISK_NAME “tinyFSDisk”
+#define DEFAULT_DISK_NAME "tinyFSDisk"
 
 #define MAX_BLOCKS 500
 

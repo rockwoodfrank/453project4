@@ -65,6 +65,13 @@ int tfs_mkfs(char *filename, int nBytes) {
 
 int tfs_mount(char* diskname)
 {
+    // Initialize a new tinyFS object
+
+    // Opens the disk file
+
+    // Returns an error if that disk isn't a disk
+
+    // add the relevant information: file name, disk number
     printf("hello, world!\n");
     return 0;
 }

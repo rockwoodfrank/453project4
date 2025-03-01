@@ -6,22 +6,18 @@
 #include <string.h>
 
 #include "libDisk.h"
-#include "tinyFS.h"
 
-void libDiskTests();
-void tinyFSTests();
+void testReadBlock();
 
 int main(int argc, char *argv[]) {
     // Testing libDisk
-    libDiskTests();
+    testReadBlock();
 
-    tinyFSTests();
-
-    printf("Tests passed.\n");
+    printf("libDisk Tests passed.\n");
     return 0;
 }
 
-void libDiskTests()
+void testReadBlock()
 {
     int testFile = open("test.dsk", O_RDWR);
     int compFile = open("test.dsk", O_RDWR);
@@ -46,10 +42,4 @@ void libDiskTests()
     // Bad lseek
 
     // Bad read
-}
-
-void tinyFSTests()
-{
-    char dummy = 'y';
-    tfs_mount(&dummy);
 }
