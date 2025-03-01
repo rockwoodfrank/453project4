@@ -32,14 +32,14 @@ runBasicDiskTest: basicDiskTest
 	rm -f $(DISKOBJS)
 	./basicDisk | diff testOutputs/basicDiskTestOutput1.txt -
 	./basicDisk | diff testOutputs/basicDiskTestOutput2.txt -
-	echo basicDiskTest passed.
+	echo \> basicDiskTest passed.
 
 basicTinyFSTest: $(OBJS) basicTinyFSTest.c
 	$(CC) $(CFLAGS) -o basicFS $(OBJS) basicTinyFSTest.c
 
 runBasicTinyFSTest: basicTinyFSTest
 	./basicFS
-	echo basicTinyFSTestPassed.
+	echo \> basicTinyFSTestPassed.
 
 libDiskTest: libDisk.h libDisk.o libDiskTest.c
 	$(CC) $(CFLAGS) -o libDiskTest libDisk.o libDiskTest.c

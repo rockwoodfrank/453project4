@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
     // Testing libDisk
     testReadBlock();
 
-    printf("libDisk Tests passed.\n");
+    printf("> libDisk Tests passed.\n");
     return 0;
 }
 

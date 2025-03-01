@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
 
     testTfs_mount();
 
-    printf("tinyFS Tests passed.\n");
+    printf("> tinyFS Tests passed.\n");
     return 0;
 }
 
