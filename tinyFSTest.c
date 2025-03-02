@@ -28,25 +28,28 @@ void testTfs_mount()
 {
     
     assert(tfs_mount("testFiles/test.dsk") == 0);
+    // TODO: add some write function that verifies the disk can be written to
 
     // tfs_unmount
     assert(tfs_unmount() == 0);
-    // TODO: add some write function that verifies the disk can be written to
+    // making sure that trying to unmount again results in failure
+    assert(tfs_unmount() == -1);
 
     // disks that don't exist
     // TODO: replace with actual error code
     assert(tfs_mount("testFiles/notAFile.dsk") == -1);
-    //TODO: add some write function that verifies the 
 
     // remounting, making sure that doesn't break anything
     assert(tfs_mount("testFiles/test.dsk") == 0);
     assert(tfs_mount("testFiles/test2.dsk") == 0);
     // TODO: verify that test2 was written to and not test
 
-
+    assert(tfs_unmount() == 0);
     // files of the incorrect type
     // TODO: replace with actual error code
     assert(tfs_mount("testFiles/notADisk.txt") == -1);
     assert(tfs_mount("testFiles/notADisk.dsk") == -1);
+    
 
+    // TODO: The specific case when a file isn't a disk: make sure a memory leak doesn't occur
 }
