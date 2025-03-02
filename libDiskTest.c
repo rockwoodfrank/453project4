@@ -19,8 +19,8 @@ int main(int argc, char *argv[]) {
 
 void testReadBlock()
 {
-    int testFile = open("test.dsk", O_RDWR);
-    int compFile = open("test.dsk", O_RDWR);
+    int testFile = open("testFiles/test.dsk", O_RDWR);
+    int compFile = open("testFiles/test.dsk", O_RDWR);
     char *buff = (char *) malloc(sizeof(char) * BLOCKSIZE);
     char *buff2 = (char *) malloc(sizeof(char) * BLOCKSIZE);
 
