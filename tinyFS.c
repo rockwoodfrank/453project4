@@ -115,3 +115,13 @@ int tfs_unmount()
     // TODO: Make sure the file is unmounted "cleanly"
     return returnVal;
 }
+
+fileDescriptor tfs_openFile(char *name)
+{
+
+}
+
+int tfs_closeFile(fileDescriptor FD)
+{
+    
+}

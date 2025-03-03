@@ -9,6 +9,7 @@
 
 void testTfs_mkfs();
 void testTfs_mount();
+void testTfs_updateFile();
 
 int main(int argc, char *argv[]) {
 
@@ -20,7 +21,14 @@ int main(int argc, char *argv[]) {
 }
 
 void testTfs_mkfs()
-{
+{  
+    // Verifying the contents of the newly created disk are correct
+
+    // Testing with a weird blocksize
+
+    // Storing it in a directory that doesn't exist
+
+    // Disk files that already exist
     assert(1);
 }
 
@@ -52,4 +60,9 @@ void testTfs_mount()
     
 
     // TODO: The specific case when a file isn't a disk: make sure a memory leak doesn't occur
+}
+
+void testTfs_updateFile()
+{
+
 }
