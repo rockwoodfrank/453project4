@@ -1,18 +1,22 @@
 CC = gcc
 CFLAGS = -Wall -std=gnu99 -pedantic -g
-PROG = tinyFSDemo
+PROGS = tinyFSDemo
+TESTPROGS = libDiskTest basicDiskTest runBasicDiskTest basicTinyFSTest runBasicTinyFSTest tinyFSTest
 OBJS = tinyFSDemo.o tinyFS.o libDisk.o
 DISKOBJS = disk0.dsk disk1.dsk disk2.dsk disk3.dsk
 
-$(PROG): $(OBJS)
-	$(CC) $(CFLAGS) -o $(PROG) $(OBJS)
+$(PROGS): $(OBJS)
+	$(CC) $(CFLAGS) -o $(PROGS) $(OBJS)
 
 clean:
 	rm -rf $(PROGS)
 	rm -f $(OBJS) *~ TAGS
+	rm -rf $(TESTPROGS)
+	rm -rf $(DISKOBJS)
 
 declutter: 
 	rm -f $(OBJS) *~ TAGS
+	rm -f *.o
 
 tinyFsDemo.o: tinyFSDemo.c libTinyFS.h tinyFS.h tinyFS_errno.h
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -22,7 +26,6 @@ tinyFS.o: tinyFS.c tinyFS.h libDisk.h libDisk.o tinyFS_errno.h
 
 libDisk.o: libDisk.c libDisk.h tinyFS.h tinyFS_errno.h
 	$(CC) $(CFLAGS) -c -o $@ $<
-
 
 # Testing
 basicDiskTest: $(OBJS) basicDiskTest.c

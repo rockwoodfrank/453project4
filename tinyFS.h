@@ -67,8 +67,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer);
 success/error codes.*/
 int tfs_seek(fileDescriptor FD, int offset);
 
-typedef struct tinyFS
-{
+typedef struct tinyFS {
     // Name of the disk file
     char *name;
     // Disk number returned by openDisk()

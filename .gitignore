@@ -1,5 +1,10 @@
 *.o
+*.dsk
 test
 tinyFSDemo
-basic
-*.dsk
+libDiskTest 
+basicDiskTest 
+runBasicDiskTest
+basicTinyFSTest 
+runBasicTinyFSTest 
+tinyFSTest
