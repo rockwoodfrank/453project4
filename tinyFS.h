@@ -15,7 +15,9 @@ possible values */
 #define DEFAULT_DISK_SIZE 10240
 
 /* use this name for a default emulated disk file name */
-#define DEFAULT_DISK_NAME “tinyFSDisk”
+#define DEFAULT_DISK_NAME "tinyFSDisk"
+
+#define MAX_BLOCKS 500
 
 /* use as a special type to keep track of files */
 typedef int fileDescriptor;
@@ -64,5 +66,14 @@ int tfs_readByte(fileDescriptor FD, char *buffer);
 /* change the file pointer location to offset (absolute). Returns
 success/error codes.*/
 int tfs_seek(fileDescriptor FD, int offset);
+
+typedef struct tinyFS
+{
+    // Name of the disk file
+    char *name;
+    // Disk number returned by openDisk()
+    int diskNum;
+} tinyFS;
+
 
 #endif

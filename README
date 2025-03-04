@@ -1,6 +1,34 @@
 Rockwood Frank, Quincy Collinsworth, Sydney Lynch
 
-TODO:
+Instructions:
+run "make test" run all tests on the code. Shouldn't pass right now.
+
+
+Notes to Programmers:
+A global structure called "mounted" now exists.
+An all-in-one testing regime was added but needs to be completed. You can help with that if you want.
+Give Rocky a list of things you want to test for if you feel like it. I will be trying to break your code in every possible way. Be prepared.
+TODO: Add valgrind to tests?
+
+Questions:
 - ask what is expected from us out of the manual error stuff
 > https://www.thegeekstuff.com/2010/10/linux-error-codes/
+- What should the behavior be when trying to mount a disk that fails? Do we keep the current one or unmount it?
 
+STORAGE STRUCTURES:
+
+Superblock:
+Byte    Value
+0       1
+1       0x44
+2       Ptr to next free block
+3       Empty
+4+      inode addresses
+
+Inode:
+Byte    Value
+0       2
+1       0x44
+2       Blank
+3       Blank
+4       Direct Blocks to Data

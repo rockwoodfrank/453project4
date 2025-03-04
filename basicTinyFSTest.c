@@ -8,7 +8,8 @@
  
  #include "tinyFS.h"
  #include "libTinyFS.h"
- #include "TinyFS_errno.h"
+ // NOTE: in the original file this was "TinyFS_errno.h" (note the capital T.)
+ #include "tinyFS_errno.h"
  
  /* simple helper function to fill Buffer with as many inPhrase strings as possible before reaching size */
  int

@@ -7,9 +7,20 @@
 
 #include "libDisk.h"
 
+void testReadBlock();
+
 int main(int argc, char *argv[]) {
-    int testFile = open("test.dsk", O_RDWR);
-    int compFile = open("test.dsk", O_RDWR);
+    // Testing libDisk
+    testReadBlock();
+
+    printf("> libDisk Tests passed.\n");
+    return 0;
+}
+
+void testReadBlock()
+{
+    int testFile = open("testFiles/test.dsk", O_RDWR);
+    int compFile = open("testFiles/test.dsk", O_RDWR);
     char *buff = (char *) malloc(sizeof(char) * BLOCKSIZE);
     char *buff2 = (char *) malloc(sizeof(char) * BLOCKSIZE);
 
@@ -31,8 +42,4 @@ int main(int argc, char *argv[]) {
     // Bad lseek
 
     // Bad read
-
-
-    printf("Tests passed.\n");
-    return 0;
 }

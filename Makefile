@@ -1,7 +1,8 @@
 CC = gcc
 CFLAGS = -Wall -std=gnu99 -pedantic -g
 PROG = tinyFSDemo
-OBJS = tinyFSDemo.o libTinyFS.o libDisk.o
+OBJS = tinyFSDemo.o tinyFS.o libDisk.o
+DISKOBJS = disk0.dsk disk1.dsk disk2.dsk disk3.dsk
 
 $(PROG): $(OBJS)
 	$(CC) $(CFLAGS) -o $(PROG) $(OBJS)
@@ -16,14 +17,43 @@ declutter:
 tinyFsDemo.o: tinyFSDemo.c libTinyFS.h tinyFS.h tinyFS_errno.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-libTinyFS.o: libTinyFS.c libTinyFS.h tinyFS.h libDisk.h libDisk.o tinyFS_errno.h
+tinyFS.o: tinyFS.c tinyFS.h libDisk.h libDisk.o tinyFS_errno.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 libDisk.o: libDisk.c libDisk.h tinyFS.h tinyFS_errno.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-basicDiskTest:
-	$(CC) $(CFLAGS) -o basic $(OBJS) basicDiskTest.c 
+
+# Testing
+basicDiskTest: $(OBJS) basicDiskTest.c
+	$(CC) $(CFLAGS) -o basicDisk $(OBJS) basicDiskTest.c 
+
+runBasicDiskTest: basicDiskTest
+	rm -f $(DISKOBJS)
+	./basicDisk | diff testOutputs/basicDiskTestOutput1.txt -
+	./basicDisk | diff testOutputs/basicDiskTestOutput2.txt -
+	echo \> basicDiskTest passed.
+
+basicTinyFSTest: $(OBJS) basicTinyFSTest.c
+	$(CC) $(CFLAGS) -o basicFS $(OBJS) basicTinyFSTest.c
+
+runBasicTinyFSTest: basicTinyFSTest
+	./basicFS
+	echo \> basicTinyFSTestPassed.
+
+libDiskTest: libDisk.h libDisk.o libDiskTest.c
+	$(CC) $(CFLAGS) -o libDiskTest libDisk.o libDiskTest.c
+
+tinyFSTest: tinyFS.h libDisk.h tinyFS.o libDisk.o tinyFSTest.c
+	$(CC) $(CFLAGS) -o tinyFSTest tinyFS.o libDisk.o tinyFSTest.c
+
+unitTests: libDiskTest tinyFSTest
+	./libDiskTest
+	./tinyFSTest
+
+# Add any commands to run tests here, then we have a single command to run all tests.
+test: clean unitTests runBasicDiskTest runBasicTinyFSTest
+	$(info All tests passed!)
 
 tarball: clean
 	tar -czvf project4.tar.gz ./
