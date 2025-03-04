@@ -1,8 +1,13 @@
 #ifndef LIBTINY_H
 #define LIBTINY_H
 
+#include "libDisk.h"
+
 /* The default size of the disk and file system block */
 #define BLOCKSIZE 256
+
+/* 8 bit addressing for free blocks and inode data means max blocks is 256*/
+#define MAX_BLOCKS 256
 
 /* Your program should use a 10240 Byte disk size giving you 40 blocks
 total. This is a default size. You must be able to support different

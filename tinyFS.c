@@ -2,6 +2,10 @@
 
 int tfs_mkfs(char *filename, int nBytes) {
 
+    if(nBytes == 0) {
+        return -1;
+    }
+
     /* open the disk */
     int disk_descriptor = openDisk(filename, nBytes);
     if(disk_descriptor < 0) {
