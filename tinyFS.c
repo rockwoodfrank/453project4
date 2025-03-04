@@ -1,11 +1,5 @@
 #include "tinyFS.h"
 
-// TODO: Move these to the header file?
-#include "libDisk.h"
-
-#include <stdlib.h>
-#include <stdio.h>
-
 tinyFS *mounted = NULL;
 
 int tfs_mkfs(char *filename, int nBytes) {
@@ -31,25 +25,28 @@ int tfs_mkfs(char *filename, int nBytes) {
     /* Buffer to write data to newly opened disk*/
     uint8_t buffer[BLOCKSIZE];
     memset(buffer, 0, BLOCKSIZE);
+    int last_free_block;
     
     /* Initialize free blocks */
     buffer[0] = 0x04;
     buffer[1] = 0x44;
-    buffer[2] = 0x02;
+    buffer[2] = 0x01;
     for(int i=1; i< number_of_blocks; i++) {
-
-        if(writeBlock(disk_descriptor, i, buffer) < 0) {
-            return -1;
-        }
 
         /* If you aren't at the last block, link to the next free block */
         if(i+1 != number_of_blocks) {
             buffer[2]++;
+        } else {
+            last_free_block = buffer[2];
+            buffer[2] = 0x00;
+        }
+
+        if(writeBlock(disk_descriptor, i, buffer) < 0) {
+            return -1;
         }
     }
 
     /* Initialize superblock */
-    int last_free_block = buffer[2];
     memset(buffer, 0, BLOCKSIZE);
     buffer[0] = 0x01;
     buffer[1] = 0x44;
@@ -62,7 +59,6 @@ int tfs_mkfs(char *filename, int nBytes) {
         return -1;
     }
 
-    // TODO: Change? Rocky added this so tests would pass
     return 0;
 
 }
@@ -70,15 +66,15 @@ int tfs_mkfs(char *filename, int nBytes) {
 int tfs_mount(char* diskname)
 {
     int diskNum = openDisk(diskname, 0);
-    // Returns an error if that disk doesn't exist
+    /* Returns an error if that disk doesn't exist */
     if (diskNum < 0)
     {
-        // TODO: Diagnose and set an error number
+        /* TODO: Diagnose and set an error number */
         return -1;
     }
 
-    // Returning an error if the file isn't formatted properly
-    // Done by making sure byte 1 of the superblock is 0x44
+    /* Returning an error if the file isn't formatted properly */
+    /* Done by making sure byte 1 of the superblock is 0x44 */
     void *buffer = malloc(BLOCKSIZE);
     readBlock(diskNum, 0, buffer);
     uint8_t byte0 = ((uint8_t *)buffer)[0];
@@ -86,7 +82,7 @@ int tfs_mount(char* diskname)
     if (byte0 != 1 || byte1 != 0x44)
     {
         free(buffer);
-        // TODO: Set the error number
+        /* TODO: Set the error number */
         return -1;
     }
     free(buffer);
@@ -94,11 +90,11 @@ int tfs_mount(char* diskname)
     if (mounted != NULL)
         tfs_unmount();
 
-    // Initialize a new tinyFS object
+    /* Initialize a new tinyFS object */
     mounted = (tinyFS *) malloc(sizeof(tinyFS));
     mounted->name = diskname;
 
-    // Opens the disk file
+    /* Opens the disk file */
     mounted->diskNum = diskNum;
 
     return 0;
@@ -106,17 +102,17 @@ int tfs_mount(char* diskname)
 
 int tfs_unmount()
 {
-    // TODO: Return the proper error number
+    /* TODO: Return the proper error number */
     if (mounted == NULL)
         return -1;
         
-    // Free the mounted variable and change it to a null pointer
+    /* Free the mounted variable and change it to a null pointer */
     int returnVal = closeDisk(mounted->diskNum);
 
     free(mounted);
     mounted = NULL;
 
-    // TODO: Make sure the file is unmounted "cleanly"
+    /* TODO: Make sure the file is unmounted "cleanly" */
     return returnVal;
 }
 
