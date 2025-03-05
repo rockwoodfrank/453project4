@@ -23,7 +23,8 @@ Byte    Value
 1       0x44
 2       Ptr to next free block
 3       Empty
-4+      inode addresses
+4       Tail of free block linked list
+5+      inode addresses
 
 Inode:
 Byte    Value
@@ -31,4 +32,9 @@ Byte    Value
 1       0x44
 2       Blank
 3       Blank
-4       Direct Blocks to Data
+4-12    File name
+13      File size
+14+     Direct Blocks to Data
+
+For Quincy: 
+gcc tinyFS.c libDisk.c -g -Wall -pedantic -std=gnu99 -o testSydneyDisk

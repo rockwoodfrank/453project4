@@ -14,6 +14,8 @@
 /* This macro represents the number of bytes left in the super block to store inode pointers */
 #define MAX_INODES 251
 
+#define FD_TABLESIZE 256
+
 /* Your program should use a 10240 Byte disk size giving you 40 blocks
 total. This is a default size. You must be able to support different
 possible values */
@@ -31,6 +33,9 @@ typedef struct tinyFS {
 
 /* use as a special type to keep track of files */
 typedef int fileDescriptor;
+
+extern int fd_table_index;
+uint8_t fd_table[FD_TABLESIZE]; 
 
 /* Makes a blank TinyFS file system of size nBytes on the unix file
 specified by ‘filename’. This function should use the emulated disk
