@@ -11,6 +11,9 @@
 /* 8 bit addressing for free blocks and inode data means max blocks is 256*/
 #define MAX_BLOCKS 256
 
+/* This macro represents the number of bytes left in the super block to store inode pointers */
+#define MAX_INODES 251
+
 /* Your program should use a 10240 Byte disk size giving you 40 blocks
 total. This is a default size. You must be able to support different
 possible values */

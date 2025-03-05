@@ -1,6 +1,6 @@
 #include "tinyFS.h"
 
-tinyFS *mounted = NULL;
+tinyFS* mounted = NULL;
 
 int tfs_mkfs(char *filename, int nBytes) {
 
@@ -116,8 +116,43 @@ int tfs_unmount() {
 
 fileDescriptor tfs_openFile(char *name) {
 
+    /* Get the superblock */
+    uint8_t superblock[256];
+    readBlock(mounted->diskNum, 0, superblock);
+
+    /* Buffer to hold inode data */
+    char buffer[256];
+
+    char* filename = (char*) malloc(9);
+    
+    /* Look through the inode pointers in the superblock */
+    for(int i=0; i<MAX_INODES; i++) {
+        printf("running loop\n");
+        readBlock(mounted->diskNum, superblock[i+5],buffer);
+        filename = buffer + 4;
+        if(strcmp(name,filename) == 0) {
+            printf("Found the inode for the file %s!! \n", filename);
+            break;
+        }
+    }
+
+    /* TODO: Now that files can be found, update tables */
+    /* TODO: Implemetn if files are not found, they are created */
+
+    return 0;
 }
 
-int tfs_closeFile(fileDescriptor FD) {
+// int tfs_closeFile(fileDescriptor FD) {
     
+// }
+
+
+int main() {
+    // tfs_mkfs("SydneysDisk", 8192);
+    if(tfs_mount("SydneysDisk") < 0) {
+        printf("Failed to mount Sydney's disk");
+        return -1;
+    }
+
+    tfs_openFile("test5");
 }
