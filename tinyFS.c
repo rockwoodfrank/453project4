@@ -290,7 +290,7 @@ int _free_block(uint8_t block_addr) {
     return 0;
 }
 
-int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
+int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     /* Writes buffer ‘buffer’ of size ‘size’, which represents an entire
 file’s content, to the file system. Previous content (if any) will be
 completely lost. Sets the file pointer to 0 (the start of file) when
@@ -336,6 +336,7 @@ done. Returns success/error codes. */
     }
     // TODO: setting the file pointer to 0; when we have file pointers
     // note from sydney: we should have 'file pointer' be an offset int stored in inode bytes 18-21
+    tfs_seek(FD, 0); // sets offset to 0
     return 0;
 }
 
@@ -351,25 +352,16 @@ int tfs_readByte(fileDescriptor FD, char* buffer) {
     // inode bytes 17-20: file offset
     // inode bytes 21+: data blocks
 
-    // get file size
-    int size = (inode[13] << 3) + (inode[14] << 2) + (inode[15] << 1) + inode[16];
-
     // get file offset from inode block and convert to block & block offset
     int offset = (inode[17] << 3) + (inode[18] << 2) + (inode[19] << 1) + inode[20];
     int block_num = offset / BLOCKSIZE;
     int block_offset = offset % BLOCKSIZE;
 
-    // make sure the next byte being read is in the file
-    if (offset >= size) {
-        return -1;
-    } 
-
-    // increment the offset and store it back in the inode
-    offset++;
-    inode[17] = (offset >> 3) & 0xFF;
-    inode[18] = (offset >> 2) & 0xFF;
-    inode[19] = (offset >> 1) & 0xFF;
-    inode[20] = offset & 0xFF;
+    // increment the offset and make sure it is in the file
+    int seek_status = tfs_seek(FD, offset++);
+    if (seek_status < 0) {
+        return seek_status;
+    }
 
     // Grab the data block
     uint8_t data_block_num = inode[21 + block_num];
@@ -383,8 +375,25 @@ int tfs_readByte(fileDescriptor FD, char* buffer) {
 }
 
 int tfs_seek(fileDescriptor FD, int offset) {
+    // Grab the inode
+    uint8_t inode[BLOCKSIZE]; 
+    readBlock(mounted->diskNum, fd_table[FD], inode);
 
+    // get file size
+    int size = (inode[13] << 3) + (inode[14] << 2) + (inode[15] << 1) + inode[16];
 
+    // make sure the offset is in the file
+    if (offset >= size || offset < 0) {
+        return -1;
+    } 
+
+    // store the offset in the file inode
+    inode[17] = (offset >> 3) & 0xFF;
+    inode[18] = (offset >> 2) & 0xFF;
+    inode[19] = (offset >> 1) & 0xFF;
+    inode[20] = offset & 0xFF;
+
+    return 0;
 }
 
 /* Uncomment and run this block if you want to test */
