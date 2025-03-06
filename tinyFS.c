@@ -12,7 +12,6 @@ uint8_t _pop_free_block();
 int     _free_block(uint8_t block_addr);
 
 int tfs_mkfs(char *filename, int nBytes) {
-
     if(nBytes == 0) {
         return -1;
     }
@@ -75,8 +74,7 @@ int tfs_mkfs(char *filename, int nBytes) {
 int tfs_mount(char* diskname) {
     int diskNum = openDisk(diskname, 0);
     /* Returns an error if that disk doesn't exist */
-    if (diskNum < 0)
-    {
+    if (diskNum < 0) {
         /* TODO: Diagnose and set an error number */
         return -1;
     }
@@ -87,8 +85,7 @@ int tfs_mount(char* diskname) {
     readBlock(diskNum, SUPERBLOCK_DISKLOC, buffer);
     uint8_t byte0 = ((uint8_t *)buffer)[BLOCK_TYPE];
     uint8_t byte1 = ((uint8_t *)buffer)[SAFETY_BYTE];
-    if (byte0 != 1 || byte1 != 0x44)
-    {
+    if (byte0 != 1 || byte1 != 0x44) {
         free(buffer);
         /* TODO: Set the error number */
         return -1;
@@ -217,7 +214,6 @@ fileDescriptor tfs_openFile(char *name) {
 }
 
 int tfs_closeFile(fileDescriptor FD) {
-
     /* if there is an entry, remove entry */
     if(fd_table[FD]) {
         fd_table[FD] = 0;
@@ -256,8 +252,7 @@ int _update_fd_table_index() {
 
 // Pop and return the next free block, and replace the superblock index
 // with that block's next block. Should return 0 if no more free blocks exist.
-uint8_t _pop_free_block()
-{
+uint8_t _pop_free_block() {
     // Grab the superblock. This is done locally as some functions may not
     // need to store the superblock so this function does it just in case
     uint8_t superblock[BLOCKSIZE];
@@ -276,8 +271,7 @@ uint8_t _pop_free_block()
 
 /* free_block turns the given block into a free block, and also adds
     it to the list of free blocks. Returns a 0 on success or -1 on error*/
-int _free_block(uint8_t block_addr)
-{
+int _free_block(uint8_t block_addr) {
     // Grab the superblock
     uint8_t superblock[BLOCKSIZE];
     readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock);
@@ -296,8 +290,7 @@ int _free_block(uint8_t block_addr)
     return 0;
 }
 
-int tfs_writeFile(fileDescriptor FD,char *buffer, int size)
-{
+int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     /* Writes buffer ‘buffer’ of size ‘size’, which represents an entire
 file’s content, to the file system. Previous content (if any) will be
 completely lost. Sets the file pointer to 0 (the start of file) when
@@ -309,8 +302,7 @@ done. Returns success/error codes. */
     // Counter for clearing
     int i = 0;
     uint8_t dir_block = inode[DBLOCKS + i++];
-    while(dir_block != 0x0)
-    {
+    while(dir_block != 0x0) {
         // Allocating each block as "free" and adding them to the linked list
         _free_block(dir_block);
         dir_block = inode[DBLOCKS + i++];
@@ -324,11 +316,9 @@ done. Returns success/error codes. */
     uint8_t temp_block[BLOCKSIZE];
     // A value to keep track of where we are in the buffer
     int bufferHead = 0;
-    for (int i = 0; i<numBlocks; i++)
-    {
+    for (int i = 0; i<numBlocks; i++) {
         temp_addr = _pop_free_block();
-        if (temp_addr)
-        {
+        if (temp_addr) {
             readBlock(mounted->diskNum, temp_addr, temp_block);
             // Update important data
             temp_block[BLOCK_TYPE] = FILEEX;
@@ -345,47 +335,99 @@ done. Returns success/error codes. */
         // TODO: Error checking(probably a full disk)
     }
     // TODO: setting the file pointer to 0; when we have file pointers
+    // note from sydney: we should have 'file pointer' be an offset int stored in inode bytes 18-21
     return 0;
 }
 
+int tfs_readByte(fileDescriptor FD, char* buffer) {
+    // Grab the block's inode
+    uint8_t inode[BLOCKSIZE]; 
+    readBlock(mounted->diskNum, fd_table[FD], inode);
+    // inode byte 0 = 0x02
+    // inode byte 1 = 0x44
+    // inode bytes 2-3: blank
+    // inode bytes 4-12: file name
+    // inode bytes 13-16: file size
+    // inode bytes 17-20: file offset
+    // inode bytes 21+: data blocks
+
+    // get file size
+    int size = (inode[13] << 3) + (inode[14] << 2) + (inode[15] << 1) + inode[16];
+
+    // get file offset from inode block and convert to block & block offset
+    int offset = (inode[17] << 3) + (inode[18] << 2) + (inode[19] << 1) + inode[20];
+    int block_num = offset / BLOCKSIZE;
+    int block_offset = offset % BLOCKSIZE;
+
+    // make sure the next byte being read is in the file
+    if (offset >= size) {
+        return -1;
+    } 
+
+    // increment the offset and store it back in the inode
+    offset++;
+    inode[17] = (offset >> 3) & 0xFF;
+    inode[18] = (offset >> 2) & 0xFF;
+    inode[19] = (offset >> 1) & 0xFF;
+    inode[20] = offset & 0xFF;
+
+    // Grab the data block
+    uint8_t data_block_num = inode[21 + block_num];
+    uint8_t data_block[BLOCKSIZE]; 
+    readBlock(mounted->diskNum, fd_table[FD], inode);
+
+    // store the byte at the offset into the given buffer
+    buffer[0] =  data_block[block_offset];
+    
+    return 0;
+}
+
+int tfs_seek(fileDescriptor FD, int offset) {
+
+
+}
+
 /* Uncomment and run this block if you want to test */
-// int main() {
-//     tfs_mkfs("SydneysDisk", 8192);
-//     if(tfs_mount("SydneysDisk") < 0) {
-//         printf("Failed to mount Sydney's disk");
-//         return -1;
-//     }
+int main() {
+    tfs_mkfs("SydneysDisk", 8192);
+    if(tfs_mount("SydneysDisk") < 0) {
+        printf("Failed to mount Sydney's disk");
+        return -1;
+    }
 
-//     /* Existing files */
-//     int fd = tfs_openFile("test1XXXIshouldnotseethis");
-//     printf("File test1 has been opened with fd %d\n", fd);
-//     printf("The inode of the file is %d\n\n", fd_table[fd]);
+    /* Existing files */
+    int fd = tfs_openFile("test1XXXIshouldnotseethis");
+    printf("File test1 has been opened with fd %d\n", fd);
+    printf("The inode of the file is %d\n\n", fd_table[fd]);
 
-//     fd = tfs_openFile("test2");
-//     printf("File test2 has been opened with fd %d\n", fd);
-//     printf("The inode of the file is %d\n\n", fd_table[fd]);
+    char buffer[100];
+    tfs_readByte(fd, buffer);
 
-//     fd = tfs_openFile("test3");
-//     printf("File test3 has been opened with fd %d\n", fd);
-//     printf("The inode of the file is %d\n\n", fd_table[fd]);
+    // fd = tfs_openFile("test2");
+    // printf("File test2 has been opened with fd %d\n", fd);
+    // printf("The inode of the file is %d\n\n", fd_table[fd]);
 
-//     /* Make this file */
-//     fd = tfs_openFile("test4");
-//     printf("File test4 has been opened with fd %d\n", fd);
-//     printf("The inode of the file is %d\n\n", fd_table[fd]);
+    // fd = tfs_openFile("test3");
+    // printf("File test3 has been opened with fd %d\n", fd);
+    // printf("The inode of the file is %d\n\n", fd_table[fd]);
 
-//     if(tfs_closeFile(fd) < 0) {
-//         printf("Closing file failed\n");
-//         return -1;
-//     }
+    // /* Make this file */
+    // fd = tfs_openFile("test4");
+    // printf("File test4 has been opened with fd %d\n", fd);
+    // printf("The inode of the file is %d\n\n", fd_table[fd]);
 
-//     fd = tfs_openFile("test5");
-//     printf("File test5 has been opened with fd %d\n", fd);
-//     printf("The inode of the file is %d\n\n", fd_table[fd]);
+    // if(tfs_closeFile(fd) < 0) {
+    //     printf("Closing file failed\n");
+    //     return -1;
+    // }
 
-//     fd = tfs_openFile("test6");
-//     printf("File test6 has been opened with fd %d\n", fd);
-//     printf("The inode of the file is %d\n\n", fd_table[fd]);
+    // fd = tfs_openFile("test5");
+    // printf("File test5 has been opened with fd %d\n", fd);
+    // printf("The inode of the file is %d\n\n", fd_table[fd]);
 
-//     return 0;
-// }
+    // fd = tfs_openFile("test6");
+    // printf("File test6 has been opened with fd %d\n", fd);
+    // printf("The inode of the file is %d\n\n", fd_table[fd]);
+
+    return 0;
+}

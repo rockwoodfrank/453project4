@@ -33,8 +33,9 @@ Byte    Value
 2       Blank
 3       Blank
 4-12    File name
-13      File size
-14+     Direct Blocks to Data
+13-16   File size
+17-20   File Offset
+21+ 	Direct Blocks to Data
 
 File Extent:
 Byte    Value
