@@ -124,6 +124,9 @@ int tfs_unmount() {
 }
 
 fileDescriptor tfs_openFile(char *name) {
+    if(name == NULL) {
+        return -1;
+    }
 
     /* truncate name to be the first chars */
     int z = 0;
@@ -134,36 +137,30 @@ fileDescriptor tfs_openFile(char *name) {
         z++;
     }
 
-    if(name == NULL) {
-        return -1;
-    }
-
     /* Get the superblock */
     uint8_t superblock[BLOCKSIZE];
     readBlock(mounted->diskNum, 0, superblock);
 
     /* Buffer to hold inode data */
-    char buffer[BLOCKSIZE];
-    memset(buffer, 0, BLOCKSIZE);
+    char inode_buffer[BLOCKSIZE];
     
     /* Look through the inode pointers in the superblock */
-    for(int i=0; i<MAX_INODES; i++) {
-
-        memset(buffer, 0, BLOCKSIZE);
+    for(int i=5; i<MAX_INODES; i++) {
+        memset(inode_buffer, 0, BLOCKSIZE);
 
         /* Break out if we have an empty block, meaning the file doesn't exist */
-        if(!superblock[i+5]) {
+        if(!superblock[i]) {
             break;
         }
 
         /* Grab the name from the inode buffer */
-        readBlock(mounted->diskNum, superblock[i+5], buffer);
-        char* filename = buffer + 4;
-        if(strcmp(name_trunc,filename) == 0) {
+        readBlock(mounted->diskNum, superblock[i], inode_buffer);
+        char* filename = inode_buffer + 4;
+        if(strcmp(name_trunc, filename) == 0) {
             // Found the file. Located at inode i.
-            printf("Found file at inode %d\n", superblock[i+5]);
+            printf("Found file at inode %d\n", superblock[i]);
             if(_update_fd_table_index() >= 0) {
-                fd_table[fd_table_index] = superblock[i+5];
+                fd_table[fd_table_index] = superblock[i];
                 int temp = fd_table_index;
                 //TODO: remove this incrementation? it may be redundant
                 fd_table_index++;
@@ -185,9 +182,9 @@ fileDescriptor tfs_openFile(char *name) {
     if(next_free_block) {
         
         /* update the inodes array */
-        for(int i=0; i < MAX_INODES; i++) {
-            if(!superblock[i+5]) {
-                superblock[i+5] = next_free_block;
+        for(int i = 5; i < MAX_INODES; i++) {
+            if(!superblock[i]) {
+                superblock[i] = next_free_block;
                 break;
             }
         }
@@ -195,12 +192,12 @@ fileDescriptor tfs_openFile(char *name) {
         /* put name of file on the inode */
         int z = 0;
         while(name_trunc[z] != '\000') {
-            buffer[z+4] = name[z];
+            inode_buffer[z+4] = name[z];
             z++;
         }
-        buffer[0] = 0x02;
-        buffer[1] = 0x44;
-        buffer[2] = 0x00;
+        inode_buffer[0] = 0x02;
+        inode_buffer[1] = 0x44;
+        inode_buffer[2] = 0x00;
 
 
         if(_update_fd_table_index() >= 0) {
@@ -210,7 +207,7 @@ fileDescriptor tfs_openFile(char *name) {
             fd_table_index++;
 
             /* turn the free block into an inode */
-            if(writeBlock(mounted->diskNum, next_free_block, buffer) < 0) {
+            if(writeBlock(mounted->diskNum, next_free_block, inode_buffer) < 0) {
                 return -1;
             }
 
@@ -349,8 +346,6 @@ done. Returns success/error codes. */
         }
         // TODO: Error checking(probably a full disk)
     }
-    // TODO: setting the file pointer to 0; when we have file pointers
-    // note from sydney: we should have 'file pointer' be an offset int stored in inode bytes 18-21
     tfs_seek(FD, 0); // sets offset to 0
     return 0;
 }
@@ -359,13 +354,6 @@ int tfs_readByte(fileDescriptor FD, char* buffer) {
     // Grab the block's inode
     uint8_t inode[BLOCKSIZE]; 
     readBlock(mounted->diskNum, fd_table[FD], inode);
-    // inode byte 0 = 0x02
-    // inode byte 1 = 0x44
-    // inode bytes 2-3: blank
-    // inode bytes 4-12: file name
-    // inode bytes 13-16: file size
-    // inode bytes 17-20: file offset
-    // inode bytes 21+: data blocks
 
     // get file offset from inode block and convert to block & block offset
     int offset = (inode[17] << 3) + (inode[18] << 2) + (inode[19] << 1) + inode[20];
@@ -381,7 +369,7 @@ int tfs_readByte(fileDescriptor FD, char* buffer) {
     // Grab the data block
     uint8_t data_block_num = inode[21 + block_num];
     uint8_t data_block[BLOCKSIZE]; 
-    readBlock(mounted->diskNum, data_block_num, data_block); // might be wrong
+    readBlock(mounted->diskNum, data_block_num, data_block);
 
     // store the byte at the offset into the given buffer
     buffer[0] =  data_block[block_offset];
@@ -412,20 +400,23 @@ int tfs_seek(fileDescriptor FD, int offset) {
 }
 
 /* Uncomment and run this block if you want to test */
-int main() {
-    tfs_mkfs("SydneysDisk", 8192);
-    if(tfs_mount("SydneysDisk") < 0) {
-        printf("Failed to mount Sydney's disk");
-        return -1;
-    }
+// int main(int argc, char* argv[]) {
+    // if(argc > 1) {
+    //     tfs_mkfs("SydneysDisk", 8192);
+    // }
 
-    /* Existing files */
-    int fd = tfs_openFile("test1XXXIshouldnotseethis");
-    printf("File test1 has been opened with fd %d\n", fd);
-    printf("The inode of the file is %d\n\n", fd_table[fd]);
+    // if(tfs_mount("SydneysDisk") < 0) {
+    //     printf("Failed to mount Sydney's disk");
+    //     return -1;
+    // }
 
-    char buffer[100];
-    tfs_readByte(fd, buffer);
+    // /* Existing files */
+    // int fd = tfs_openFile("test1XXXIshouldnotseethis");
+    // printf("File test1 has been opened with fd %d\n", fd);
+    // printf("The inode of the file is %d\n\n", fd_table[fd]);
+
+    // char buffer[100];
+    // tfs_readByte(fd, buffer);
 
     // fd = tfs_openFile("test2");
     // printf("File test2 has been opened with fd %d\n", fd);
@@ -453,5 +444,5 @@ int main() {
     // printf("File test6 has been opened with fd %d\n", fd);
     // printf("The inode of the file is %d\n\n", fd_table[fd]);
 
-    return 0;
-}
+//     return 0;
+// }
