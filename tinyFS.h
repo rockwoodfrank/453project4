@@ -30,6 +30,10 @@
 #define FILE_NAME   4
 #define FILE_SIZE   13
 #define DBLOCKS     14
+
+/*The space on each file extent for data. Need to exclude one byte for type and safety byte*/
+#define DATA_SPACE  254
+
 /*Macros to store the block types*/
 #define SUPERBLOCK  0x01
 #define INODE       0x02
@@ -53,7 +57,8 @@ typedef struct tinyFS {
     int diskNum;
 } tinyFS;
 
-/* use as a special type to keep track of files */
+/* use as a special type to keep track of files. This value serves as the
+index into the file descriptor table */
 typedef int fileDescriptor;
 
 extern int fd_table_index;

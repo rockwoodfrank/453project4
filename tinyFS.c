@@ -122,7 +122,7 @@ int tfs_unmount() {
 }
 
 fileDescriptor tfs_openFile(char *name) {
-
+    // TODO: Add some redundancy in case you try to open a file that has already been opened
     if(name == NULL) {
         return -1;
     }
@@ -298,13 +298,50 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size)
 file’s content, to the file system. Previous content (if any) will be
 completely lost. Sets the file pointer to 0 (the start of file) when
 done. Returns success/error codes. */
-    // Grab the block's inode from the table
-
+    // Grab the block's inode
+    uint8_t inode[BLOCKSIZE]; 
+    readBlock(mounted->diskNum, fd_table[FD], inode);
     // Resetting the direct blocks so the data is "lost" since nothing is pointing to them
-    // Allocating each block as "free" and adding them to the linked list
-    // Determining the amount of blocks to be written
+    // Counter for clearing
+    int i = 0;
+    uint8_t dir_block = inode[DBLOCKS + i++];
+    while(dir_block != 0x0)
+    {
+        // Allocating each block as "free" and adding them to the linked list
+        _free_block(dir_block);
+        dir_block = inode[DBLOCKS + i++];
+    }
+    // Determining the amount of blocks to be written. A plus one at the end for data outside the 256 byte margin.
+    // NOTE TO PROGRAMMER: I set this to size-1 so write of 256 bytes(or any number on the line)
+    // will not take up extra blocks. Might cause problems in the future.
+    int numBlocks = ((size-1) / DATA_SPACE) + 1;
     // Writing those blocks to the file
+    uint8_t temp_addr;
+    uint8_t temp_block[BLOCKSIZE];
+    // A value to keep track of where we are in the buffer
+    int bufferHead = 0;
+    for (int i = 0; i<numBlocks; i++)
+    {
+        temp_addr = _pop_free_block();
+        if (temp_addr)
+        {
+            readBlock(mounted->diskNum, temp_addr, temp_block);
+            // Update important data
+            temp_block[BLOCK_TYPE] = FILEEX;
+            //temp_block[2] = inode; TODO: if we want to link up parents, not sure right now
+
+            // Copy the buffer data over to the block
+            // TODO: Change i's value into a macro?
+            for (int i = 2; i<BLOCKSIZE; i++)
+            {
+                temp_block[i] = buffer[bufferHead++];
+            }
+            writeBlock(mounted->diskNum, temp_addr, temp_block);
+        }
+        // TODO: Error checking(probably a full disk)
+    }
     // TODO: setting the file pointer to 0; when we have file pointers
+    return 0;
 }
 
 /* Uncomment and run this block if you want to test */
