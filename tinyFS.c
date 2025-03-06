@@ -147,12 +147,12 @@ fileDescriptor tfs_openFile(char *name) {
 // }
 
 
-int main() {
-    // tfs_mkfs("SydneysDisk", 8192);
-    if(tfs_mount("SydneysDisk") < 0) {
-        printf("Failed to mount Sydney's disk");
-        return -1;
-    }
+int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
+{
+    
+}
 
-    tfs_openFile("test5");
+int tfs_deleteFile(fileDescriptor FD)
+{
+
 }
