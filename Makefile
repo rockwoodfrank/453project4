@@ -18,7 +18,7 @@ declutter:
 	rm -f $(OBJS) *~ TAGS
 	rm -f *.o
 
-tinyFsDemo.o: tinyFSDemo.c libTinyFS.h tinyFS.h tinyFS_errno.h
+tinyFsDemo.o: tinyFSDemo.c libTinyFS.h tinyFS.h tinyFS_errno.h tinyFS.o
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 tinyFS.o: tinyFS.c tinyFS.h libDisk.h libDisk.o tinyFS_errno.h
