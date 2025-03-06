@@ -3,8 +3,9 @@
 tinyFS* mounted = NULL;
 int fd_table_index = 0;
 
-int _update_fd_table_index();
-
+int     _update_fd_table_index();
+uint8_t _pop_free_block();
+int     _free_block(uint8_t block_addr);
 
 int tfs_mkfs(char *filename, int nBytes) {
 
@@ -51,10 +52,10 @@ int tfs_mkfs(char *filename, int nBytes) {
     }
 
     /* Initialize superblock */
-    memset(buffer, 0, BLOCKSIZE);
-    buffer[0] = 0x01;
-    buffer[1] = 0x44;
-    buffer[2] = 0x01;
+    memset(buffer, SUPERBLOCK_DISKLOC, BLOCKSIZE);
+    buffer[BLOCK_TYPE] = 0x01;
+    buffer[SAFETY_BYTE] = 0x44;
+    buffer[FREE_PTR] = 0x01;
 
     /* Store the tail of chain of free blocks on the superblock */
     buffer[4] = last_free_block;
@@ -79,9 +80,9 @@ int tfs_mount(char* diskname) {
     /* Returning an error if the file isn't formatted properly */
     /* Done by making sure byte 1 of the superblock is 0x44 */
     void *buffer = malloc(BLOCKSIZE);
-    readBlock(diskNum, 0, buffer);
-    uint8_t byte0 = ((uint8_t *)buffer)[0];
-    uint8_t byte1 = ((uint8_t *)buffer)[1];
+    readBlock(diskNum, SUPERBLOCK_DISKLOC, buffer);
+    uint8_t byte0 = ((uint8_t *)buffer)[BLOCK_TYPE];
+    uint8_t byte1 = ((uint8_t *)buffer)[SAFETY_BYTE];
     if (byte0 != 1 || byte1 != 0x44)
     {
         free(buffer);
@@ -133,20 +134,24 @@ fileDescriptor tfs_openFile(char *name) {
     /* Buffer to hold inode data */
     char buffer[256];
 
-    char* filename = (char*) malloc(9);
+    char* filename = (char*) malloc(FILE_NAMELENGTH + 1);
     
     /* Look through the inode pointers in the superblock */
     for(int i=0; i<MAX_INODES; i++) {
+        // Break out if we have an empty block, meaning the file doesn't exist
         if(!superblock[i+5]) {
             break;
         }
+        // Grab the first inode, located in the fifth block.
         readBlock(mounted->diskNum, superblock[i+5],buffer);
         filename = buffer + 4;
         if(strcmp(name,filename) == 0) {
+            // Found the file. Located at inode i.
             printf("Found file at inode %d\n", superblock[i+5]);
             if(_update_fd_table_index() >= 0) {
                 fd_table[fd_table_index] = superblock[i+5];
                 int temp = fd_table_index;
+                //TODO: remove this incrementation? it may be redundant
                 fd_table_index++;
                 return temp;
             } else {
@@ -157,15 +162,12 @@ fileDescriptor tfs_openFile(char *name) {
     }
 
     /* File not found, so create inode for it */
-    uint8_t next_free_block = superblock[2];
+    // TODO: How is this updated? Do we need to make a function for that? What should we 
+    //do when we delete a file? Move every inode over?
+    uint8_t next_free_block = _pop_free_block();
 
     /* if there is an available free block... */
     if(next_free_block) {
-        /* then, create inode for it*/
-        readBlock(mounted->diskNum, next_free_block, buffer);
-
-        /* update next free block */
-        superblock[2] = buffer[2];
         
         /* update the inodes array */
         for(int i=0; i < MAX_INODES; i++) {
@@ -188,6 +190,7 @@ fileDescriptor tfs_openFile(char *name) {
         if(_update_fd_table_index() >= 0) {
             fd_table[fd_table_index] = next_free_block;
             int temp = fd_table_index;
+            //TODO: remove this incrementation? it may be redundant
             fd_table_index++;
 
             /* turn the free block into an inode */
@@ -245,6 +248,63 @@ int _update_fd_table_index() {
 
     /* if you made it this far, there are no available file descriptors */
     return -1;
+}
+
+// Pop and return the next free block, and replace the superblock index
+// with that block's next block. Should return 0 if no more free blocks exist.
+uint8_t _pop_free_block()
+{
+    // Grab the superblock. This is done locally as some functions may not
+    // need to store the superblock so this function does it just in case
+    uint8_t superblock[BLOCKSIZE];
+    readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock);
+
+    uint8_t newBlock[BLOCKSIZE];
+    uint8_t next_free_block = superblock[FREE_PTR];
+    /* then, grab the address for the next free inode*/
+    readBlock(mounted->diskNum, next_free_block, newBlock);
+    // TODO: return an error on a bad read
+    /* update next free block */
+    superblock[FREE_PTR] = newBlock[FREE_PTR];
+    writeBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock);
+    return next_free_block;
+}
+
+/* free_block turns the given block into a free block, and also adds
+    it to the list of free blocks. Returns a 0 on success or -1 on error*/
+int _free_block(uint8_t block_addr)
+{
+    // Grab the superblock
+    uint8_t superblock[BLOCKSIZE];
+    readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock);
+
+    // Change block type
+    uint8_t clean_block[BLOCKSIZE];
+    clean_block[BLOCK_TYPE] = FREE;
+    clean_block[SAFETY_BYTE] = 0x44;
+    clean_block[FREE_PTR] = superblock[FREE_PTR];
+    writeBlock(mounted->diskNum, block_addr, clean_block);
+    
+    // Change free list
+    superblock[FREE_PTR] = block_addr;
+    writeBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock);
+    // TODO: Error checking
+    return 0;
+}
+
+int tfs_writeFile(fileDescriptor FD,char *buffer, int size)
+{
+    /* Writes buffer ‘buffer’ of size ‘size’, which represents an entire
+file’s content, to the file system. Previous content (if any) will be
+completely lost. Sets the file pointer to 0 (the start of file) when
+done. Returns success/error codes. */
+    // Grab the block's inode from the table
+
+    // Resetting the direct blocks so the data is "lost" since nothing is pointing to them
+    // Allocating each block as "free" and adding them to the linked list
+    // Determining the amount of blocks to be written
+    // Writing those blocks to the file
+    // TODO: setting the file pointer to 0; when we have file pointers
 }
 
 /* Uncomment and run this block if you want to test */

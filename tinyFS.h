@@ -14,7 +14,29 @@
 /* This macro represents the number of bytes left in the super block to store inode pointers */
 #define MAX_INODES 251
 
+#define FILE_NAMELENGTH 8
+
 #define FD_TABLESIZE 256
+
+/*Macros with universal data on every block*/
+#define BLOCK_TYPE  0
+#define SAFETY_BYTE 1
+#define FREE_PTR    2
+
+/*Macro for supernode location on disk*/
+#define SUPERBLOCK_DISKLOC 0
+
+/*Macros for inode locations*/
+#define FILE_NAME   4
+#define FILE_SIZE   13
+#define DBLOCKS     14
+/*Macros to store the block types*/
+#define SUPERBLOCK  0x01
+#define INODE       0x02
+#define FILEEX      0x03
+#define FREE        0x04
+
+
 
 /* Your program should use a 10240 Byte disk size giving you 40 blocks
 total. This is a default size. You must be able to support different
@@ -35,6 +57,9 @@ typedef struct tinyFS {
 typedef int fileDescriptor;
 
 extern int fd_table_index;
+/*fd_table: the global variable used to store open file descriptors on memory.
+The helper function _update_fd_table_index() sets the variable fd_table_index to
+the next index so the program can store a new file*/
 uint8_t fd_table[FD_TABLESIZE]; 
 
 /* Makes a blank TinyFS file system of size nBytes on the unix file
