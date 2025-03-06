@@ -62,10 +62,6 @@ index into the file descriptor table */
 typedef int fileDescriptor;
 
 extern int fd_table_index;
-/*fd_table: the global variable used to store open file descriptors on memory.
-The helper function _update_fd_table_index() sets the variable fd_table_index to
-the next index so the program can store a new file*/
-uint8_t fd_table[FD_TABLESIZE]; 
 
 /* Makes a blank TinyFS file system of size nBytes on the unix file
 specified by ‘filename’. This function should use the emulated disk

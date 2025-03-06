@@ -1,6 +1,10 @@
 #include "tinyFS.h"
 
 tinyFS* mounted = NULL;
+/*fd_table: the global variable used to store open file descriptors on memory.
+The helper function _update_fd_table_index() sets the variable fd_table_index to
+the next index so the program can store a new file*/
+uint8_t fd_table[FD_TABLESIZE]; 
 int fd_table_index = 0;
 
 int     _update_fd_table_index();
