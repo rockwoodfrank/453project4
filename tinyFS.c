@@ -146,8 +146,6 @@ fileDescriptor tfs_openFile(char *name) {
     char buffer[BLOCKSIZE];
     memset(buffer, 0, BLOCKSIZE);
     char inode_buffer[256];
-
-    char* filename = (char*) malloc(FILE_NAMELENGTH + 1);
     
     /* Look through the inode pointers in the superblock */
     for(int i=0; i<MAX_INODES; i++) {
