@@ -145,7 +145,6 @@ fileDescriptor tfs_openFile(char *name) {
     /* Buffer to hold inode data */
     char buffer[BLOCKSIZE];
     memset(buffer, 0, BLOCKSIZE);
-    char inode_buffer[256];
     
     /* Look through the inode pointers in the superblock */
     for(int i=0; i<MAX_INODES; i++) {
@@ -161,10 +160,6 @@ fileDescriptor tfs_openFile(char *name) {
         readBlock(mounted->diskNum, superblock[i+5], buffer);
         char* filename = buffer + 4;
         if(strcmp(name_trunc,filename) == 0) {
-        // Grab the first inode, located in the fifth block.
-        readBlock(mounted->diskNum, superblock[i+5], inode_buffer);
-        filename[9] = buffer + 4;
-        if(strcmp(name,filename) == 0) {
             // Found the file. Located at inode i.
             printf("Found file at inode %d\n", superblock[i+5]);
             if(_update_fd_table_index() >= 0) {
