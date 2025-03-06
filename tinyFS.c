@@ -133,7 +133,7 @@ fileDescriptor tfs_openFile(char *name) {
     readBlock(mounted->diskNum, 0, superblock);
 
     /* Buffer to hold inode data */
-    char buffer[256];
+    char inode_buffer[256];
 
     char* filename = (char*) malloc(FILE_NAMELENGTH + 1);
     
@@ -144,8 +144,8 @@ fileDescriptor tfs_openFile(char *name) {
             break;
         }
         // Grab the first inode, located in the fifth block.
-        readBlock(mounted->diskNum, superblock[i+5],buffer);
-        filename = buffer + 4;
+        readBlock(mounted->diskNum, superblock[i+5], inode_buffer);
+        filename[9] = buffer + 4;
         if(strcmp(name,filename) == 0) {
             // Found the file. Located at inode i.
             printf("Found file at inode %d\n", superblock[i+5]);
@@ -366,7 +366,7 @@ int tfs_readByte(fileDescriptor FD, char* buffer) {
     // Grab the data block
     uint8_t data_block_num = inode[21 + block_num];
     uint8_t data_block[BLOCKSIZE]; 
-    readBlock(mounted->diskNum, fd_table[FD], inode);
+    readBlock(mounted->diskNum, data_block_num, data_block); // might be wrong
 
     // store the byte at the offset into the given buffer
     buffer[0] =  data_block[block_offset];
