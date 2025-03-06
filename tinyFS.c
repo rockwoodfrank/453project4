@@ -1,6 +1,7 @@
 #include "tinyFS.h"
 
 tinyFS* mounted = NULL;
+
 /*fd_table: the global variable used to store open file descriptors on memory.
 The helper function _update_fd_table_index() sets the variable fd_table_index to
 the next index so the program can store a new file*/
@@ -123,26 +124,45 @@ int tfs_unmount() {
 }
 
 fileDescriptor tfs_openFile(char *name) {
-    // TODO: Add some redundancy in case you try to open a file that has already been opened
+
+    /* truncate name to be the first chars */
+    int z = 0;
+    char name_trunc[9];
+    memset(name_trunc, 0, 9);
+    while(z < 8 && name[z] != '\0') {
+        name_trunc[z] = name[z];
+        z++;
+    }
+
     if(name == NULL) {
         return -1;
     }
 
     /* Get the superblock */
-    uint8_t superblock[256];
+    uint8_t superblock[BLOCKSIZE];
     readBlock(mounted->diskNum, 0, superblock);
 
     /* Buffer to hold inode data */
+    char buffer[BLOCKSIZE];
+    memset(buffer, 0, BLOCKSIZE);
     char inode_buffer[256];
 
     char* filename = (char*) malloc(FILE_NAMELENGTH + 1);
     
     /* Look through the inode pointers in the superblock */
     for(int i=0; i<MAX_INODES; i++) {
-        // Break out if we have an empty block, meaning the file doesn't exist
+
+        memset(buffer, 0, BLOCKSIZE);
+
+        /* Break out if we have an empty block, meaning the file doesn't exist */
         if(!superblock[i+5]) {
             break;
         }
+
+        /* Grab the name from the inode buffer */
+        readBlock(mounted->diskNum, superblock[i+5], buffer);
+        char* filename = buffer + 4;
+        if(strcmp(name_trunc,filename) == 0) {
         // Grab the first inode, located in the fifth block.
         readBlock(mounted->diskNum, superblock[i+5], inode_buffer);
         filename[9] = buffer + 4;
@@ -166,6 +186,7 @@ fileDescriptor tfs_openFile(char *name) {
     // TODO: How is this updated? Do we need to make a function for that? What should we 
     //do when we delete a file? Move every inode over?
     uint8_t next_free_block = _pop_free_block();
+    readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock);
 
     /* if there is an available free block... */
     if(next_free_block) {
@@ -180,11 +201,12 @@ fileDescriptor tfs_openFile(char *name) {
 
         /* put name of file on the inode */
         int z = 0;
-        while(z < 8 && name[z] != '\000') {
+        while(name_trunc[z] != '\000') {
             buffer[z+4] = name[z];
             z++;
         }
         buffer[0] = 0x02;
+        buffer[1] = 0x44;
         buffer[2] = 0x00;
 
 
