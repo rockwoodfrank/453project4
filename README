@@ -57,6 +57,7 @@ Sydney notes:
 
 TODO:
 - replace all 'return -1' with our error system
+- if time: implement ls dir/../dir2 ?
 
 For Quincy: 
 gcc tinyFS.c libDisk.c -g -Wall -pedantic -std=gnu99 -o testSydneyDisk
