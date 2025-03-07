@@ -38,8 +38,7 @@ int tfs_mkfs(char *filename, int nBytes) {
     /* buffer to write data to newly opened disk*/
     uint8_t buffer[BLOCKSIZE];
     memset(buffer, 0, BLOCKSIZE);
-    int last_free_block;
-    
+
     /* initialize free blocks */
     buffer[BLOCK_TYPE] = FREE;
     buffer[SAFETY_BYTE] = SAFETY_HEX;
@@ -52,7 +51,6 @@ int tfs_mkfs(char *filename, int nBytes) {
 
         /* if at the last block, store the last free block */
         } else {
-            last_free_block = buffer[FREE_PTR];
             buffer[FREE_PTR] = 0x00;
         }
 
@@ -67,7 +65,6 @@ int tfs_mkfs(char *filename, int nBytes) {
     buffer[BLOCK_TYPE] = SUPERBLOCK;
     buffer[SAFETY_BYTE] = SAFETY_HEX;
     buffer[FREE_PTR] = 0x01;
-    buffer[4] = last_free_block;
 
     if(writeBlock(disk_descriptor, SUPERBLOCK_DISKLOC, buffer) < 0) {
         return -1;
@@ -109,7 +106,7 @@ int tfs_mount(char* diskname) {
 
     /* reset the fd table */
     memset(fd_table, 0, FD_TABLESIZE);
-
+    // TODO: run closedisk
     return 0;
 }
 
@@ -150,7 +147,7 @@ fileDescriptor tfs_openFile(char *name) {
     char inode_buffer[BLOCKSIZE];
     
     /* Look through the inode pointers in the superblock */
-    for(int i=5; i<MAX_INODES; i++) {
+    for(int i=FIRST_INODE; i<MAX_INODES; i++) {
         memset(inode_buffer, 0, BLOCKSIZE);
 
         /* Break out if we have an empty block, meaning the file doesn't exist */
@@ -174,8 +171,6 @@ fileDescriptor tfs_openFile(char *name) {
     }
 
     /* File not found, so create inode for it */
-    // TODO: How is this updated? Do we need to make a function for that? What should we 
-    //do when we delete a file? Move every inode over?
     uint8_t next_free_block = _pop_free_block();
     readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock);
 
@@ -183,7 +178,7 @@ fileDescriptor tfs_openFile(char *name) {
     if(next_free_block) {
         
         /* find the first empty byte in the superblock and add the inode */
-        for(int i = 5; i < MAX_INODES; i++) {
+        for(int i = FIRST_INODE; i < MAX_INODES; i++) {
             if(!superblock[i]) {
                 superblock[i] = next_free_block;
                 break;
@@ -264,9 +259,9 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     // Determining the amount of blocks to be written. A plus one at the end for data outside the 256 byte margin.
     // NOTE TO PROGRAMMER: I set this to size-1 so write of 256 bytes(or any number on the line)
     // will not take up extra blocks. Might cause problems in the future.
-    //SYDNOTE: can only do that if the last byte is a /0 ..?
-    // int numBlocks = ((size-1) / DATA_SPACE) + 1;
-    int numBlocks = (size / DATA_SPACE) + 1;
+    //unSYDNOTE: can only do that if the last byte is a /0 ..?
+    int numBlocks = ((size-1) / DATA_SPACE) + 1;
+    //int numBlocks = (size / DATA_SPACE) + 1;
     // Writing those blocks to the file
     uint8_t temp_addr;
     uint8_t temp_block[BLOCKSIZE];

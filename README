@@ -14,6 +14,7 @@ Questions:
 - ask what is expected from us out of the manual error stuff
 > https://www.thegeekstuff.com/2010/10/linux-error-codes/
 - What should the behavior be when trying to mount a disk that fails? Do we keep the current one or unmount it?
+- What to do if mkfs fails? do we remove the '.dsk' file?
 
 STORAGE STRUCTURES:
 
@@ -23,15 +24,14 @@ Byte    Value
 1       0x44
 2       Ptr to next free block
 3       Empty
-4       Tail of free block linked list TODO: Do we need this? Can't we just append things to the head?
-5+      inode addresses
+4+      inode addresses
 
 Inode:
 Byte    Value
 0       2
 1       0x44
 2       Blank
-3       Blank
+3       Empty
 4-12    File name
 13-16   File size
 17-20   File Offset
@@ -42,7 +42,8 @@ Byte    Value
 0       3
 1       0x44
 2       Parent Block?
-3+      Data
+3       Empty
+4+      Data
 
 Free Block:
 Byte    Value

@@ -22,14 +22,99 @@ int main(int argc, char *argv[]) {
 
 void testTfs_mkfs()
 {  
+    remove("testFiles/unitTestDisk.dsk");
     // Verifying the contents of the newly created disk are correct
+    int diskSize = DEFAULT_DISK_SIZE;
+    char *superBlock = (char *) malloc(sizeof(char) * (BLOCKSIZE+1));
+    char *blankBlock = (char *) malloc(sizeof(char) * (BLOCKSIZE+1));
+    FILE *newDisk;
+    long int file_len;
+
+    assert(tfs_mkfs("testFiles/unitTestDisk.dsk", diskSize) == 0);
+    newDisk = fopen("testFiles/unitTestDisk.dsk", "r");
+
+    fread(superBlock, sizeof(char), BLOCKSIZE, newDisk);
+    // Test block type
+    assert(superBlock[BLOCK_TYPE] == 0x1);
+    // Test magic number
+    assert(superBlock[SAFETY_BYTE] == 0x44);
+
+    // Test free pointer
+    assert(superBlock[FREE_PTR] == 0x01);
+
+    // Empty
+    assert(superBlock[3] == 0x0);
+
+    // Test inode addresses are empty
+    for (int i = FIRST_INODE; i < BLOCKSIZE; i++)
+        assert(superBlock[i] == 0x0);
+
+    // Test that the empty blocks are pointed to
+
+    int counter = 0;
+    uint8_t next_ptr = superBlock[FREE_PTR];
+    while(next_ptr != 0x0)
+    {
+        counter++;
+        fread(blankBlock, sizeof(char), BLOCKSIZE, newDisk);
+        next_ptr = blankBlock[FREE_PTR];
+    }
+    assert(counter == (diskSize/BLOCKSIZE) -1);
+    fclose(newDisk);
+
+    // Test that running mkfs twice erases the disk: run twice with a smaller disk size
+    diskSize = diskSize / 2;
+    assert(tfs_mkfs("testFiles/unitTestDisk.dsk", diskSize) == 0);
+    newDisk = fopen("testFiles/unitTestDisk.dsk", "r");
+
+    fread(superBlock, sizeof(char), BLOCKSIZE, newDisk);
+    // Test block type
+    assert(superBlock[BLOCK_TYPE] == 0x1);
+    // Test magic number
+    assert(superBlock[SAFETY_BYTE] == 0x44);
+
+    // Test free pointer
+    assert(superBlock[FREE_PTR] == 0x01);
+
+    // Empty
+    assert(superBlock[3] == 0x0);
+
+    // Test inode addresses are empty
+    for (int i = FIRST_INODE; i < BLOCKSIZE; i++)
+        assert(superBlock[i] == 0x0);
+
+    // Test that the empty blocks are pointed to
+
+    counter = 0;
+    next_ptr = superBlock[FREE_PTR];
+    while(next_ptr != 0x0)
+    {
+        counter++;
+        fread(blankBlock, sizeof(char), BLOCKSIZE, newDisk);
+        next_ptr = blankBlock[FREE_PTR];
+    }
+    assert(counter == (diskSize/BLOCKSIZE) -1);
+    fclose(newDisk);
+
+    remove("testFiles/unitTestDisk.dsk");
+
 
     // Testing with a weird blocksize
+    assert(tfs_mkfs("testFiles/unitTestDisk.dsk", 927) == 0);
+    newDisk = fopen("testFiles/unitTestDisk.dsk", "r");
+    fseek(newDisk, 0L, SEEK_END);
+    file_len = ftell(newDisk);
+    
+    assert(file_len == 768);
+    fclose(newDisk);
+    remove("testFiles/unitTestDisk.dsk");
+    
+    // Testing a disk size that's too big
+    assert(tfs_mkfs("testFiles/unitTestDisk.dsk", BLOCKSIZE * (MAX_BLOCKS + 1)) != 0);
+    assert(access("testFiles/unitTestDisk.dsk", F_OK) != 1);
 
     // Storing it in a directory that doesn't exist
 
-    // Disk files that already exist
-    assert(1);
 }
 
 void testTfs_mount()

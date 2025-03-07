@@ -12,7 +12,7 @@
 #define MAX_BLOCKS 256
 
 /* This macro represents the number of bytes left in the super block to store inode pointers */
-#define MAX_INODES 251
+#define MAX_INODES 252
 
 #define FILENAME_LENGTH 8
 
@@ -22,9 +22,13 @@
 #define BLOCK_TYPE  0
 #define SAFETY_BYTE 1
 #define FREE_PTR    2
+#define EMPTY       3
 
 /*Macro for supernode location on disk*/
 #define SUPERBLOCK_DISKLOC 0
+
+/*Superblock Macros*/
+#define FIRST_INODE 4
 
 /*Macros for inode locations*/
 #define FILE_NAME   4
