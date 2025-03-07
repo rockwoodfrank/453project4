@@ -60,6 +60,7 @@ typedef struct tinyFS {
 
 /* use as a special type to keep track of files. This value serves as the
 index into the file descriptor table */
+#define EMPTY_TABLEVAL 0
 typedef int fileDescriptor;
 
 extern int fd_table_index;
