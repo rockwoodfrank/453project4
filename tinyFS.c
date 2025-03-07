@@ -156,23 +156,20 @@ fileDescriptor tfs_openFile(char *name) {
         /* Break out if we have an empty block, meaning the file doesn't exist */
         // SYDNOTE: if we remove an inode and don't fill the hole this will cause problems
         // might just need to loop through all 5-255 bytes in superblock, check if is inode then proceed
-        if(!superblock[i]) {
-            break;
-        }
+        if(superblock[i]) {
+            /* Grab the name from the inode buffer */
+            readBlock(mounted->diskNum, superblock[i], inode_buffer);
+            char* filename = inode_buffer + 4; //SYDNOTE #DEFINE FILELOC 4 might be more clean
+            /* if found the file, get a new fd and update the fd table*/
+            if(strcmp(name_trunc, filename) == 0) {
+                printf("Found file at inode %d\n", superblock[i]);
+                if(_update_fd_table_index() < 0) {
+                    return -1;
+                }
 
-        /* Grab the name from the inode buffer */
-        readBlock(mounted->diskNum, superblock[i], inode_buffer);
-        char* filename = inode_buffer + 4; //SYDNOTE #DEFINE FILELOC 4 might be more clean
-
-        /* if found the file, get a new fd and update the fd table*/
-        if(strcmp(name_trunc, filename) == 0) {
-            printf("Found file at inode %d\n", superblock[i]);
-            if(_update_fd_table_index() < 0) {
-                return -1;
+                fd_table[fd_table_index] = superblock[i];
+                return fd_table_index;
             }
-
-            fd_table[fd_table_index] = superblock[i];
-            return fd_table_index;
         }
     }
 
