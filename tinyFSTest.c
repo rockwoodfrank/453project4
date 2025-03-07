@@ -46,7 +46,7 @@ void testTfs_mkfs()
     assert(superBlock[3] == 0x0);
 
     // Test inode addresses are empty
-    for (int i = FIRST_INODE; i < BLOCKSIZE; i++)
+    for (int i = FIRST_INODE_LOC; i < BLOCKSIZE; i++)
         assert(superBlock[i] == 0x0);
 
     // Test that the empty blocks are pointed to
@@ -80,7 +80,7 @@ void testTfs_mkfs()
     assert(superBlock[3] == 0x0);
 
     // Test inode addresses are empty
-    for (int i = FIRST_INODE; i < BLOCKSIZE; i++)
+    for (int i = FIRST_INODE_LOC; i < BLOCKSIZE; i++)
         assert(superBlock[i] == 0x0);
 
     // Test that the empty blocks are pointed to

@@ -131,40 +131,105 @@ fileDescriptor tfs_openFile(char *name) {
     }
 
     /* truncate name to be the first 8 chars */
-    int z = 0;
-    char name_trunc[9]; //SYDNOTE: FILENAME+LENGTH + 1 ?
-    memset(name_trunc, 0, 9);
-    while(z < 8 && name[z] != '\0') {
-        name_trunc[z] = name[z];
-        z++;
-    }
+    // int z = 0;
+    // char name_trunc[9]; //SYDNOTE: FILENAME+LENGTH + 1 ?
+    // memset(name_trunc, 0, 9);
+    // while(z < 8 && name[z] != '\0') {
+    //     name_trunc[z] = name[z];
+    //     z++;
 
-    /* Get the superblock */
-    uint8_t superblock[BLOCKSIZE];
-    readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock);
+    // }
+
+    uint8_t rootblock[BLOCKSIZE];
+    readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, rootblock);
 
     /* Buffer to hold inode data */
     char inode_buffer[BLOCKSIZE];
+
+    // parse thru dirName to get path/dir/path and make sure valid
+    char* delim = "/";
+    char* path_token = strtok(name, delim);
+    if(strlen(path_token) > 8) {
+        return -1;
+    }
+
+    int parent = 0;
+    char last_path[9];
+    bool dir_found_flag = false;
+
+    while (path_token != NULL) {
+
+        printf("%s\n", path_token);
+
+        /* Look through the inode pointers in the rootblock */
+        for(int i=0; i<MAX_INODES; i++) {
+            dir_found_flag = false;
+            memset(inode_buffer, 0, BLOCKSIZE);
+
+            /* Account for the difference between the format of directory inodes and the superblock */
+            int z = parent == 0 ? i + FIRST_INODE_LOC : i + DIR_DATA_LOC;
+
+            /* inode has not been found yet */
+            if(z > BLOCKSIZE) {
+                break;
+            }
+
+            /* skip over if we have an empty block, meaning the directory doesn't exist */
+            if(rootblock[z]) {
+                /* Grab the name from the inode buffer */
+                readBlock(mounted->diskNum, rootblock[z], inode_buffer);
+                char* filename = inode_buffer + FILE_NAME_LOC; //SYDNOTE #DEFINE FILELOC 4 might be more clean
+                /* if found the file, get a new fd and update the fd table*/
+                if(strcmp(path_token, filename) == 0) {
+                    printf("Found directory at inode %d\n", rootblock[z]);   
+                    //SYDNOTE: make sure found is a dir not a file
+                    dir_found_flag = true; 
+
+                    /* get the inode of the found directory and store it as the parent */
+                    parent = rootblock[z];
+                    readBlock(mounted->diskNum, rootblock[z], rootblock);
+                    
+                    break;
+                }
+            }
+        }
+
+        path_token = strtok(NULL, delim);
+        if (path_token != NULL && !dir_found_flag) {
+            /* if not at the end of the given dirname path, and dir was not found, error */
+            return -1;
+        } 
+        
+        if (path_token != NULL) {
+            strcpy(last_path, path_token);
+        }
+    }
+
+    /* Get the parent */
+    readBlock(mounted->diskNum, parent, rootblock);
     
     /* Look through the inode pointers in the superblock */
-    for(int i=FIRST_INODE; i<MAX_INODES; i++) {
+    for(int i=FIRST_INODE_LOC; i<BLOCKSIZE; i++) {
         memset(inode_buffer, 0, BLOCKSIZE);
+        
+        int z = parent == 0 ? i + FIRST_INODE_LOC : i + DIR_DATA_LOC;
+        if(z > BLOCKSIZE) {
+            break;
+        }
 
-        /* Break out if we have an empty block, meaning the file doesn't exist */
-        // SYDNOTE: if we remove an inode and don't fill the hole this will cause problems
-        // might just need to loop through all 5-255 bytes in superblock, check if is inode then proceed
-        if(superblock[i]) {
+        /* Skip over if we have an empty block, meaning the file doesn't exist */
+        if(rootblock[z]) {
             /* Grab the name from the inode buffer */
-            readBlock(mounted->diskNum, superblock[i], inode_buffer);
-            char* filename = inode_buffer + 4; //SYDNOTE #DEFINE FILELOC 4 might be more clean
+            readBlock(mounted->diskNum, rootblock[z], inode_buffer);
+            char* filename = inode_buffer + FILE_NAME_LOC;
             /* if found the file, get a new fd and update the fd table*/
-            if(strcmp(name_trunc, filename) == 0) {
-                printf("Found file at inode %d\n", superblock[i]);
+            if(strcmp(last_path, filename) == 0) {
+                printf("Found file at inode %d\n", rootblock[z]);
                 if(_update_fd_table_index() < 0) {
                     return -1;
                 }
 
-                fd_table[fd_table_index] = superblock[i];
+                fd_table[fd_table_index] = rootblock[z];
                 return fd_table_index;
             }
         }
@@ -172,29 +237,29 @@ fileDescriptor tfs_openFile(char *name) {
 
     /* File not found, so create inode for it */
     uint8_t next_free_block = _pop_free_block();
-    readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock);
+    readBlock(mounted->diskNum, parent, rootblock);
     memset(inode_buffer, 0, BLOCKSIZE);
 
     /* if there is an available free block... */
     if(next_free_block) {
         
         /* find the first empty byte in the superblock and add the inode */
-        for(int i = FIRST_INODE; i < MAX_INODES; i++) {
-            if(!superblock[i]) {
-                superblock[i] = next_free_block;
+        for(int i = FIRST_INODE_LOC; i < MAX_INODES; i++) {
+            if(!rootblock[i]) {
+                rootblock[i] = next_free_block;
                 break;
             }
         }
 
         /* put name of file on the inode and information bytes */
         int z = 0;
-        while(name_trunc[z] != '\000') {
-            inode_buffer[z+4] = name_trunc[z]; // SYDNOTE DEFINE FILENAMELOC ?
+        while(last_path[z] != '\000') {
+            inode_buffer[z+FILE_NAME_LOC] = last_path[z]; // SYDNOTE DEFINE FILENAMELOC ?
             z++;
         }
         inode_buffer[BLOCK_TYPE] = INODE;
         inode_buffer[SAFETY_BYTE] = SAFETY_HEX;
-        inode_buffer[FILE_TYPE_FLAG] = FILE_TYPE_FILE;
+        inode_buffer[FILE_TYPE_FLAG_LOC] = FILE_TYPE_FILE;
 
         // find the next available fd and set it to the next 
         if(_update_fd_table_index() < 0) {
@@ -207,8 +272,8 @@ fileDescriptor tfs_openFile(char *name) {
             return -1;
         }
 
-        /* update the superblock */
-        if(writeBlock(mounted->diskNum, 0, superblock) < 0) {
+        /* update the parent of the file */
+        if(writeBlock(mounted->diskNum, parent, rootblock) < 0) {
             return -1;
         }
 
@@ -219,9 +284,6 @@ fileDescriptor tfs_openFile(char *name) {
     return -1;
 }
 
-// SYDNOTE: surely there is more to this than that
-// need to clean the inode if no other fd's point to it..?
-// if none left -> deleteFile()
 int tfs_closeFile(fileDescriptor FD) {
     /* if there is an entry, remove entry */
     if(fd_table[FD]) {
@@ -251,11 +313,11 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     // Resetting the direct blocks so the data is "lost" since nothing is pointing to them
     // Counter for clearing
     int i = 0;
-    uint8_t dir_block = inode[DBLOCKS + i++];
+    uint8_t dir_block = inode[FILE_DATA_LOC + i++];
     while(dir_block != 0x0) {
         // Allocating each block as "free" and adding them to the linked list
         _free_block(dir_block);
-        dir_block = inode[DBLOCKS + i++];
+        dir_block = inode[FILE_DATA_LOC + i++];
     }
 
     // Determining the amount of blocks to be written. A plus one at the end for data outside the 256 byte margin.
@@ -303,11 +365,11 @@ int tfs_deleteFile(fileDescriptor FD) {
     // Resetting the direct blocks so the data is "lost" since nothing is pointing to them
     // Counter for clearing
     int i = 0;
-    uint8_t dir_block = inode[DBLOCKS + i++];
+    uint8_t dir_block = inode[FILE_DATA_LOC + i++];
     while(dir_block != 0x0) {
         // Allocating each block as "free" and adding them to the linked list
         _free_block(dir_block);
-        dir_block = inode[DBLOCKS + i++];
+        dir_block = inode[FILE_DATA_LOC + i++];
     }
 
     // Finally, freeing the inode
@@ -334,7 +396,7 @@ int tfs_readByte(fileDescriptor FD, char* buffer) {
     }
 
     // Grab the data block
-    uint8_t data_block_num = inode[DBLOCKS + block_num];
+    uint8_t data_block_num = inode[FILE_DATA_LOC + block_num];
     uint8_t data_block[BLOCKSIZE]; 
     readBlock(mounted->diskNum, data_block_num, data_block);
 
@@ -377,8 +439,14 @@ int tfs_createDir(char* dirName) {
     // parse thru dirName to get path/dir/path and make sure valid
     char* delim = "/";
     char* path_token = strtok(dirName, delim);
+
+    if(strlen(path_token) > 8) {
+        return -1;
+    }
+
+    /* The superblock effectively behaves as the inode for the root */
     int parent = 0;
-    char last_path[100];
+    char last_path[9];
     strcpy(last_path, path_token);
     bool dir_found_flag = false;
 
@@ -390,25 +458,36 @@ int tfs_createDir(char* dirName) {
     char inode_buffer[BLOCKSIZE];
 
     while (path_token != NULL) {
+
         printf("%s\n", path_token);
 
         /* Look through the inode pointers in the rootblock */
-        for(int i=4; i<MAX_INODES; i++) {
+        for(int i=0; i<MAX_INODES; i++) {
+            dir_found_flag = false;
             memset(inode_buffer, 0, BLOCKSIZE);
 
+            /* Account for the difference between the format of directory inodes and the superblock */
+            int z = parent == 0 ? i + FIRST_INODE_LOC : i + DIR_DATA_LOC;
+
+            /* inode has not been found yet */
+            if(z > BLOCKSIZE) {
+                break;
+            }
+
             /* skip over if we have an empty block, meaning the directory doesn't exist */
-            if(rootblock[i]) {
+            if(rootblock[z]) {
                 /* Grab the name from the inode buffer */
-                readBlock(mounted->diskNum, rootblock[i], inode_buffer);
-                char* filename = inode_buffer + 4; //SYDNOTE #DEFINE FILELOC 4 might be more clean
+                readBlock(mounted->diskNum, rootblock[z], inode_buffer);
+                char* filename = inode_buffer + FILE_NAME_LOC; //SYDNOTE #DEFINE FILELOC 4 might be more clean
                 /* if found the file, get a new fd and update the fd table*/
                 if(strcmp(path_token, filename) == 0) {
-                    printf("Found directory at inode %d\n", rootblock[i]);   
+                    printf("Found directory at inode %d\n", rootblock[z]);   
+                    //SYDNOTE: make sure found is a dir not a file
                     dir_found_flag = true; 
 
                     /* get the inode of the found directory and store it as the parent */
-                    parent = rootblock[i];
-                    readBlock(mounted->diskNum, rootblock[i], rootblock);
+                    parent = rootblock[z];
+                    readBlock(mounted->diskNum, rootblock[z], rootblock);
                     
                     break;
                 }
@@ -437,6 +516,8 @@ int tfs_createDir(char* dirName) {
     } 
     // last_path is the name of the dir we need to create
 
+    printf("THE LAST PATH%s\n", last_path);
+
     /* File not found, so create inode for it */
     uint8_t next_free_block = _pop_free_block();
     // re get the parent directory inode block
@@ -446,22 +527,23 @@ int tfs_createDir(char* dirName) {
     /* if there is an available free block... */
     if(next_free_block) {
         /* find the first empty byte in the parent block and add the inode */
-        for(int i = 4; i < MAX_INODES; i++) {
-            if(!rootblock[i]) {
-                rootblock[i] = next_free_block;
+        for(int i = 0; i < MAX_INODES; i++) {
+            int z = parent == 0 ? i + FIRST_INODE_LOC : i + DIR_DATA_LOC;
+            if(!rootblock[z]) {
+                rootblock[z] = next_free_block;
                 break;
             }
         }
 
         /* put name of file on the inode and information bytes */
         int z = 0;
-        while(z < 8 && last_path[z] != '\000') {
-            inode_buffer[z+4] = last_path[z]; // SYDNOTE DEFINE FILENAMELOC ?
+        while(last_path[z] != '\000') {
+            inode_buffer[z+FILE_NAME_LOC] = last_path[z]; // SYDNOTE DEFINE FILENAMELOC ?
             z++;
         }
         inode_buffer[BLOCK_TYPE] = INODE;
         inode_buffer[SAFETY_BYTE] = SAFETY_HEX;
-        inode_buffer[FILE_TYPE_FLAG] = FILE_TYPE_DIR;
+        inode_buffer[FILE_TYPE_FLAG_LOC] = FILE_TYPE_DIR;
 
         /* turn the free block into an inode */
         if(writeBlock(mounted->diskNum, next_free_block, inode_buffer) < 0) {
@@ -469,7 +551,7 @@ int tfs_createDir(char* dirName) {
         }
 
         /* update the parent block */
-        if(writeBlock(mounted->diskNum, 0, rootblock) < 0) {
+        if(writeBlock(mounted->diskNum, parent, rootblock) < 0) {
             return -1;
         }
 
@@ -561,22 +643,48 @@ int _free_block(uint8_t block_addr) {
 }
 
 /* Uncomment and run this block if you want to test */
-// int main(int argc, char* argv[]) {
-//     char filename[] = "testDir";
-//    tfs_createDir(filename);
-    // if(argc > 1) {
-    //     tfs_mkfs("SydneysDisk.dsk", 8192);
-    // }
+int main(int argc, char* argv[]) {
+    if(argc > 1) {
+        tfs_mkfs("SydneysDisk.dsk", 8192);    
+    }
 
-    // if(tfs_mount("SydneysDisk.dsk") < 0) {
-    //     printf("Failed to mount Sydney's disk\n");
-    //     return -1;
-    // }
 
-    // /* Existing files */
-    // int fd = tfs_openFile("test1XXXIshouldnotseethis");
-    // printf("File test1 has been opened with fd %d\n", fd);
-    // printf("The inode of the file is %d\n\n", fd_table[fd]);
+    if(tfs_mount("SydneysDisk.dsk") < 0) {
+        printf("Failed to mount Sydney's disk\n");
+        return -1;
+    }
+
+    char filename[] = "testDir";
+    tfs_createDir(filename);
+
+    char filename2[] = "testDir/quincys";
+    printf("%d\n", tfs_createDir(filename2));
+
+    char filename3[] = "testDir/quincys/anisdir";
+    printf("%d\n", tfs_createDir(filename3));
+
+    char filename4[] = "testDir/quincys/anisdir/ARAV";
+    printf("%d\n", tfs_createDir(filename4));
+
+
+    printf("AAA\n");
+
+    /* Existing files */
+
+    char filetest5[] = "anisf";
+    int fd = tfs_openFile(filetest5);
+    printf("File anisf has been opened with fd %d\n", fd);
+    printf("The inode of the file is %d\n\n", fd_table[fd]);
+
+    char filetest6[] = "boo";
+    fd = tfs_openFile(filetest6);
+    printf("File boo has been opened with fd %d\n", fd);
+    printf("The inode of the file is %d\n\n", fd_table[fd]);
+
+    char filetest7[] = "testDir/quincys/whoo";
+    fd = tfs_openFile(filetest7);
+    printf("File whoo has been opened with fd %d\n", fd);
+    printf("The inode of the file is %d\n\n", fd_table[fd]);
 
     // char buffer[100];
     // tfs_readByte(fd, buffer);
@@ -607,5 +715,9 @@ int _free_block(uint8_t block_addr) {
     // printf("File test6 has been opened with fd %d\n", fd);
     // printf("The inode of the file is %d\n\n", fd_table[fd]);
 
-//     return 0;
-// }
+    // fd = tfs_openFile("testDir/cow");
+    // printf("File test6 has been opened with fd %d\n", fd);
+    // printf("The inode of the file is %d\n\n", fd_table[fd]);
+
+    // return 0;
+}

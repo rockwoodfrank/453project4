@@ -33,26 +33,37 @@
 #define SAFETY_HEX  0x44
 
 /*Macro for supernode location on disk*/
-#define SUPERBLOCK_DISKLOC 0
 
-/*Superblock Macros*/
-#define FIRST_INODE 4
 
-/*Macros for inode locations*/
-#define FILE_NAME       4
-#define FILE_SIZE       13
-#define FILE_OFFSET     17
-#define FILE_TYPE_FLAG  21
-#define DBLOCKS         22
+/* ~ MACROS FOR SUPER BLOCK ~ */
 
-/* inode data macros */
-#define FILE_TYPE_FILE  0
-#define FILE_TYPE_DIR   1
-#define FILENAME_LENGTH 8
+    #define SUPERBLOCK_DISKLOC 0
+    #define FIRST_INODE_LOC 4
+
+/* ~ MACROS FOR INODE BLOCK ~ */
+
+    /* inode block byte locations */
+    #define FILE_TYPE_FLAG_LOC  4
+    #define FILE_NAME_LOC       5
+
+    /* file inode block byte locations */
+    #define FILE_SIZE_LOC       14
+    #define FILE_OFFSET_LOC     18
+    #define FILE_DATA_LOC       22
+
+    /* directory inode block byte locations */
+    #define DIR_DATA_LOC        14
+
+    /* inode block constants */
+    #define FILE_TYPE_FILE      0x66    // f
+    #define FILE_TYPE_DIR       0x64    // d
+    #define FILENAME_LENGTH     8
+
+
+/* ~ MACROS FOR DATA/FILE-EXTENT BLOCKS */
 
 /* amount of bytes on a data block reserved for data */
 #define DATA_SPACE  252
-
 
 
 /* Your program should use a 10240 Byte disk size giving you 40 blocks
