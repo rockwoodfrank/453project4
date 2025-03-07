@@ -14,7 +14,7 @@
 /* This macro represents the number of bytes left in the super block to store inode pointers */
 #define MAX_INODES 251
 
-#define FILE_NAMELENGTH 8
+#define FILENAME_LENGTH 8
 
 #define FD_TABLESIZE 256
 
@@ -29,10 +29,11 @@
 /*Macros for inode locations*/
 #define FILE_NAME   4
 #define FILE_SIZE   13
-#define DBLOCKS     14
+#define FILE_OFFSET 17
+#define DBLOCKS     21
 
-/*The space on each file extent for data. Need to exclude one byte for type and safety byte*/
-#define DATA_SPACE  254
+/* amount of bytes on a data block reserved for data */
+#define DATA_SPACE  252
 
 /*Macros to store the block types*/
 #define SUPERBLOCK  0x01
@@ -40,7 +41,7 @@
 #define FILEEX      0x03
 #define FREE        0x04
 
-
+#define SAFETY_HEX  0x44
 
 /* Your program should use a 10240 Byte disk size giving you 40 blocks
 total. This is a default size. You must be able to support different

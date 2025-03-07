@@ -51,5 +51,12 @@ Byte    Value
 2       Next Free Block
 3+      Zeros or junk data
 
+
+Sydney notes:
+- 
+
+TODO:
+- replace all 'return -1' with our error system
+
 For Quincy: 
 gcc tinyFS.c libDisk.c -g -Wall -pedantic -std=gnu99 -o testSydneyDisk
