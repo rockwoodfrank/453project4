@@ -71,7 +71,7 @@
     /* file inode block byte locations */
     #define FILE_SIZE_LOC       (FILE_NAME_LOC + FILENAME_LENGTH + 1)   // 14
     #define FILE_OFFSET_LOC     (FILE_SIZE_LOC + 4)                     // 18
-    #define FILE_DATA_LOC       (FILE_OFFSET_LOC + 4)                    // 22
+    #define FILE_DATA_LOC       (FILE_OFFSET_LOC + 4)                   // 22
 
     /* directory inode block byte locations */
     #define DIR_DATA_LOC        (FILE_NAME_LOC + FILENAME_LENGTH + 1)   // 14

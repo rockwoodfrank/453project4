@@ -384,8 +384,8 @@ int tfs_readByte(fileDescriptor FD, char* buffer) {
     readBlock(mounted->diskNum, fd_table[FD], inode);
 
     // get file offset from inode block and convert to block & block offset
-    // SYDNOTE: could make this a for loop situation to use macros but that might be annoying/hard to read
-    int offset = (inode[17] << 3) + (inode[18] << 2) + (inode[19] << 1) + inode[20];
+    int i = FILE_OFFSET_LOC;
+    int offset = (inode[i] << 3) + (inode[i + 1] << 2) + (inode[i + 2] << 1) + inode[i + 3];
     int block_num = offset / BLOCKSIZE;
     int block_offset = offset % BLOCKSIZE;
 
@@ -412,7 +412,8 @@ int tfs_seek(fileDescriptor FD, int offset) {
     readBlock(mounted->diskNum, fd_table[FD], inode);
 
     // get file size
-    int size = (inode[13] << 3) + (inode[14] << 2) + (inode[15] << 1) + inode[16];
+    int i = FILE_SIZE_LOC;
+    int size = (inode[i] << 3) + (inode[i + 1] << 2) + (inode[i + 2] << 1) + inode[i + 3];
 
     // make sure the offset is in the file
     if (offset >= size || offset < 0) {
@@ -420,10 +421,11 @@ int tfs_seek(fileDescriptor FD, int offset) {
     } 
 
     // store the offset in the file inode
-    inode[17] = (offset >> 3) & 0xFF;
-    inode[18] = (offset >> 2) & 0xFF;
-    inode[19] = (offset >> 1) & 0xFF;
-    inode[20] = offset & 0xFF;
+    i = FILE_OFFSET_LOC;
+    inode[i] = (offset >> 3) & 0xFF;
+    inode[i + 1] = (offset >> 2) & 0xFF;
+    inode[i + 2] = (offset >> 1) & 0xFF;
+    inode[i + 3] = offset & 0xFF;
 
     return 0;
 }
