@@ -466,7 +466,7 @@ int tfs_createDir(char* dirName) {
         int end_bound = parent == 0? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
         for(int i = start_bound; i < end_bound; i++) {
 
-            /* skip over if we have an empty block, meaning the inode doesn't exist */
+            /* skip over if we have an empty block, meaning no inode exists there */
             if(!parent_block[i]) {
                 continue;
             }
@@ -551,6 +551,106 @@ int tfs_createDir(char* dirName) {
 
 /* deletes empty directory */
 int tfs_removeDir(char* dirName) {
+    /* make sure the given dirName is not null */
+    if (dirName == NULL) {
+        return -1;  // ERR: invalid input error
+    }
+
+    /* The superblock effectively behaves as the inode for the root */
+    int parent = SUPERBLOCK_DISKLOC;
+    uint8_t parent_block[BLOCKSIZE];
+    readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, parent_block);
+
+    bool dir_found_flag = false;
+    int path_index = 0;
+    char cur_path[FILENAME_LENGTH + 1];
+    char inode_buffer[BLOCKSIZE];
+    int grandparent = parent;
+
+    /* navigate through the directories until the end */
+    while (path_index != strlen(dirName) + 1) {
+
+        /* parse thru dirName to get the next path name and make sure valid */
+        path_index = _parse_path(dirName, path_index, cur_path);
+        if (path_index < 0) {
+            return path_index;
+        }
+
+        /* look through the inode pointers in the parent_block for the next path */
+        dir_found_flag = false;
+
+        /* set the bounds for i based on wether in the superblock or a directory inode */
+        int start_bound = parent == 0 ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
+        int end_bound = parent == 0? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
+        for(int i = start_bound; i < end_bound; i++) {
+
+            /* skip over if we have an empty block, meaning no inode exists there */
+            if(!parent_block[i]) {
+                continue;
+            }
+
+            /* Grab the name from the inode buffer */
+            memset(inode_buffer, 0, BLOCKSIZE);
+            readBlock(mounted->diskNum, parent_block[i], inode_buffer);
+            char* filename = inode_buffer + FILE_NAME_LOC; 
+
+            /* if found, reset that directory as the parent_block */
+            if(strcmp(cur_path, filename) == 0) {
+                dir_found_flag = true;
+
+                /* make sure the file found is of type 'directory' */
+                if (inode_buffer[FILE_TYPE_FLAG_LOC] == 'f') {
+                    return -1; // ERR: not a directory, is of type 'file'
+                }
+
+                /* get the inode of the found directory and store it as the parent */
+                grandparent = parent;
+                parent = parent_block[i];
+                readBlock(mounted->diskNum, parent_block[i], parent_block);
+                
+                break;
+            }
+        }
+
+        /* if not at the last path and unable to find the directory, error */
+        if (path_index != strlen(dirName) + 1 && !dir_found_flag) {
+            return -1; // ERR: not a directory, directory not found
+        } 
+    }
+
+    // SYDNOTE: everything up until this point is char for char copied from createDir, 
+    // surely a way to make a helper, was too lazy to do it atm
+    // ... except the int grandparent which can just become an unused var for createDir
+    // might want to consider putting all Dir funcs in separate file..?
+    // the only extra params we would need is the global mounted disk
+
+    /* make sure the last directory in the path does already exist */
+    if (!dir_found_flag) {
+        // trying to remove a directory that does not exist
+        return -1; // ERR: not a directory, directory not found
+    }
+
+    /* re-grab the block of the directory and make sure it is empty */
+    readBlock(mounted->diskNum, parent, inode_buffer);
+    for(int i = DIR_DATA_LOC; i < MAX_DIR_INODES; i++) {
+        if(inode_buffer[i]) {
+            printf("not empty\n");
+            return -1; // ERR: directory is not empty
+        }
+    }
+
+    /* remove the directory inode block and update its parent indoe */
+    _free_block(parent);
+    readBlock(mounted->diskNum, grandparent, parent_block);
+
+    /* set the bounds for i based on wether in the superblock or a directory inode */
+    int start_bound = grandparent == 0 ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
+    int end_bound = grandparent == 0? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
+    for(int i = start_bound; i < end_bound; i++) {
+        if(parent_block[i] == parent) {
+            parent_block[i] = EMPTY_TABLEVAL;
+        }
+    }
 
     return 0;
 }
@@ -583,7 +683,7 @@ int _parse_path(char* path, int index, char* buffer) {
 
         buffer[i++] = path[index++];
     }
-    buffer[index] = '\0';
+    buffer[i] = '\0';
 
     /* make sure the last char is the end of the name */
     if (path[index] != '\0' && path[index] != '/') {
@@ -651,6 +751,7 @@ int _free_block(uint8_t block_addr) {
     clean_block[BLOCK_TYPE_LOC] = FREE;
     clean_block[SAFETY_BYTE_LOC] = SAFETY_HEX;
     clean_block[FREE_PTR_LOC] = superblock[FREE_PTR_LOC];
+    memset(clean_block + FIRST_DATA_LOC, 0, MAX_DATA_SPACE);
     writeBlock(mounted->diskNum, block_addr, clean_block);
     
     // Change free list
@@ -679,6 +780,8 @@ int main(int argc, char* argv[]) {
     printf("%d\n", tfs_createDir("testDir/quincys/anisdir"));
 
     printf("%d\n", tfs_createDir("testDir/quincys/anisdir/ARAV"));
+
+    printf("%d\n", tfs_removeDir("testDir/quincys/anisdir/ARAV"));
 
 
     printf("AAA\n");
