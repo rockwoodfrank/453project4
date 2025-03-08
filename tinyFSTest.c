@@ -10,6 +10,7 @@
 void testTfs_mkfs();
 void testTfs_mount();
 void testTfs_updateFile();
+void* verify_contents(char *filePath, int location, size_t dataSize);
 
 int main(int argc, char *argv[]) {
     
@@ -114,14 +115,14 @@ void testTfs_mkfs()
     assert(access("testFiles/unitTestDisk.dsk", F_OK) != 1);
 
     // Storing it in a directory that doesn't exist
-
+    assert(tfs_mkfs("testFiles/doesntExist/unitTestDisk.dsk", DEFAULT_DISK_SIZE) != 0);
 }
 
 void testTfs_mount()
 {
-    
+    int diskSize = DEFAULT_DISK_SIZE;
+    assert(tfs_mkfs("testFiles/test.dsk", diskSize) == 0);
     assert(tfs_mount("testFiles/test.dsk") == 0);
-    // TODO: add some write function that verifies the disk can be written to
 
     // tfs_unmount
     assert(tfs_unmount() == 0);
@@ -149,5 +150,69 @@ void testTfs_mount()
 
 void testTfs_updateFile()
 {
+    // Testing making a new file
 
+    // Testing making a new file where the name is too long
+
+    // Too many files
+
+    // A file where the name is an empty string
+
+    // Opening the same file twice
+
+    // Writing some data to a file
+
+    // Writing a weird size of data to a file
+
+    // Writing to various files sequentially
+
+    // Writing to a file that doesn't exist
+
+    // Writing a file that's too big for the disk
+
+    // Writing a bunch of files, deleting some, writing some more
+
+    // Reading a byte from a file
+
+    // Reading a lot of bytes from a file
+
+    // Reading a byte out of range
+
+    // Seeking to the beginning of a file
+
+    // Seeking to the end of the file
+
+    // Seeking to the middle of a file
+
+    // Seeking in different files
+
+    // Seeking out of range of the file
+
+    // Deleting a file
+
+    // Trying to delete the same file twice
+
+    // Deleting all of the files on the disk
+
+    // Deleting a file that doesn't exist
+
+    // Writing to a deleted file
+
+    //Closing the file
+    
+    // Trying to close a file twice
+
+    // Closing a file that never existed
+
+
+}
+
+void* verify_contents(char *filePath, int location, size_t dataSize)
+{
+    FILE *readFile = fopen(filePath, "r");
+    void *compareAgainst = malloc(dataSize);
+    fseek(readFile, location, SEEK_SET);
+    fread(compareAgainst, dataSize, 1, readFile);
+    fclose(readFile);
+    return compareAgainst;
 }
