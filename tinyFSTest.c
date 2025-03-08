@@ -16,6 +16,7 @@ int main(int argc, char *argv[]) {
     
     testTfs_mkfs();
     testTfs_mount();
+    testTfs_updateFile();
 
     printf("> tinyFS Tests passed.\n");
     return 0;
@@ -150,11 +151,29 @@ void testTfs_mount()
 
 void testTfs_updateFile()
 {
+    int diskSize = DEFAULT_DISK_SIZE;
+    char diskName[25] = "testFiles/updateTest.dsk";
+    remove(diskName);
+    assert(tfs_mkfs(diskName, diskSize) == 0);
+    assert(tfs_mount(diskName) == 0);
+
     // Testing making a new file
+    fileDescriptor fileNum = tfs_openFile("test");
+    assert(fileNum != 0);
+    char *inode = (char*) verify_contents(diskName, sizeof(char) * BLOCKSIZE * 1, sizeof(char) *BLOCKSIZE);
+    assert(inode[BLOCK_TYPE] == INODE);
+    assert(inode[SAFETY_BYTE] == 0x44);
+    assert(inode[EMPTY] == 0x00);
+    assert(inode[FILE_TYPE_FLAG_LOC] == FILE_TYPE_FILE);
+    assert(strcmp(&(inode[FILE_NAME_LOC]), "test") == 0);
+    int fileSize = ((int *)inode)[FILE_SIZE_LOC];
+    assert(fileSize == 0);
 
     // Testing making a new file where the name is too long
+    assert(tfs_openFile("thisnameistoolong.txt") < 0);
 
     // Too many files
+    
 
     // A file where the name is an empty string
 
@@ -171,6 +190,8 @@ void testTfs_updateFile()
     // Writing a file that's too big for the disk
 
     // Writing a bunch of files, deleting some, writing some more
+
+    // Writing a HUGE file onto a HUGE disk
 
     // Reading a byte from a file
 
@@ -204,6 +225,7 @@ void testTfs_updateFile()
 
     // Closing a file that never existed
 
+    // Mounting and unmounting and making sure the data is still there
 
 }
 
