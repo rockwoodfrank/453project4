@@ -55,6 +55,9 @@ Byte    Value
 
 Sydney notes:
 - we need to be error checking readBlock everything, make a helper: safeReadBlock or smth ?
+- for dir funcs, do we want to check if last char is / ..?
+- when ever using fd, need error for invalid FD
+	> fd pointing to 0 = error
 
 TODO:
 - replace all 'return -1' with our error system

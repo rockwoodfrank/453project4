@@ -131,16 +131,6 @@ fileDescriptor tfs_openFile(char *name) {
         return -1;
     }
 
-    /* truncate name to be the first 8 chars */
-    // int z = 0;
-    // char name_trunc[9]; //SYDNOTE: FILENAME+LENGTH + 1 ?
-    // memset(name_trunc, 0, 9);
-    // while(z < 8 && name[z] != '\0') {
-    //     name_trunc[z] = name[z];
-    //     z++;
-
-    // }
-
     uint8_t rootblock[BLOCKSIZE];
     readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, rootblock);
 
@@ -463,7 +453,7 @@ int tfs_createDir(char* dirName) {
 
         /* set the bounds for i based on wether in the superblock or a directory inode */
         int start_bound = parent == 0 ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
-        int end_bound = parent == 0? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
+        int end_bound = parent == 0 ? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
         for(int i = start_bound; i < end_bound; i++) {
 
             /* skip over if we have an empty block, meaning no inode exists there */
@@ -481,7 +471,7 @@ int tfs_createDir(char* dirName) {
                 dir_found_flag = true;
 
                 /* make sure the file found is of type 'directory' */
-                if (inode_buffer[FILE_TYPE_FLAG_LOC] == 'f') {
+                if (inode_buffer[FILE_TYPE_FLAG_LOC] == FILE_TYPE_FILE) {
                     return -1; // ERR: not a directory, is of type 'file'
                 }
 
@@ -533,7 +523,7 @@ int tfs_createDir(char* dirName) {
     /* find the first empty byte in the parent block and add the inode */
     /* set the bounds for i based on wether in the superblock or a directory inode */
     int start_bound = parent == 0 ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
-    int end_bound = parent == 0? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
+    int end_bound = parent == 0 ? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
     for(int i = start_bound; i < end_bound; i++) {
         if(!parent_block[i]) {
             parent_block[i] = next_free_block;
@@ -581,7 +571,7 @@ int tfs_removeDir(char* dirName) {
 
         /* set the bounds for i based on wether in the superblock or a directory inode */
         int start_bound = parent == 0 ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
-        int end_bound = parent == 0? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
+        int end_bound = parent == 0 ? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
         for(int i = start_bound; i < end_bound; i++) {
 
             /* skip over if we have an empty block, meaning no inode exists there */
@@ -599,7 +589,7 @@ int tfs_removeDir(char* dirName) {
                 dir_found_flag = true;
 
                 /* make sure the file found is of type 'directory' */
-                if (inode_buffer[FILE_TYPE_FLAG_LOC] == 'f') {
+                if (inode_buffer[FILE_TYPE_FLAG_LOC] == FILE_TYPE_FILE) {
                     return -1; // ERR: not a directory, is of type 'file'
                 }
 
@@ -634,7 +624,6 @@ int tfs_removeDir(char* dirName) {
     readBlock(mounted->diskNum, parent, inode_buffer);
     for(int i = DIR_DATA_LOC; i < MAX_DIR_INODES; i++) {
         if(inode_buffer[i]) {
-            printf("not empty\n");
             return -1; // ERR: directory is not empty
         }
     }
@@ -645,7 +634,7 @@ int tfs_removeDir(char* dirName) {
 
     /* set the bounds for i based on wether in the superblock or a directory inode */
     int start_bound = grandparent == 0 ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
-    int end_bound = grandparent == 0? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
+    int end_bound = grandparent == 0 ? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
     for(int i = start_bound; i < end_bound; i++) {
         if(parent_block[i] == parent) {
             parent_block[i] = EMPTY_TABLEVAL;
@@ -658,8 +647,140 @@ int tfs_removeDir(char* dirName) {
 /* recursively remove dirName and any file and directories under it. 
 Special “/” token may be used to indicate root dir. */
 int tfs_removeAll(char* dirName) {
+    /* make sure the given dirName is not null */
+    if (dirName == NULL) {
+        return -1;  // ERR: invalid input error
+    }
 
-    return 0;
+    /* The superblock effectively behaves as the inode for the root */
+    int parent = SUPERBLOCK_DISKLOC;
+    uint8_t parent_block[BLOCKSIZE];
+    readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, parent_block);
+
+    bool dir_found_flag = false;
+    int path_index = 0;
+    char cur_path[FILENAME_LENGTH + 1];
+    char inode_buffer[BLOCKSIZE];
+    int grandparent = parent;
+
+    /* navigate through the directories until the end */
+    /* skip the loop if given dirName "/" */
+    while (path_index != strlen(dirName) + 1 && strcmp(dirName, "/") != 0) {
+
+        /* parse thru dirName to get the next path name and make sure valid */
+        path_index = _parse_path(dirName, path_index, cur_path);
+        if (path_index < 0) {
+            return path_index;
+        }
+
+        /* look through the inode pointers in the parent_block for the next path */
+        dir_found_flag = false;
+
+        /* set the bounds for i based on wether in the superblock or a directory inode */
+        int start_bound = parent == 0 ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
+        int end_bound = parent == 0 ? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
+        for(int i = start_bound; i < end_bound; i++) {
+
+            /* skip over if we have an empty block, meaning no inode exists there */
+            if(!parent_block[i]) {
+                continue;
+            }
+
+            /* Grab the name from the inode buffer */
+            memset(inode_buffer, 0, BLOCKSIZE);
+            readBlock(mounted->diskNum, parent_block[i], inode_buffer);
+            char* filename = inode_buffer + FILE_NAME_LOC; 
+
+            /* if found, reset that directory as the parent_block */
+            if(strcmp(cur_path, filename) == 0) {
+                dir_found_flag = true;
+
+                /* make sure the file found is of type 'directory' */
+                if (inode_buffer[FILE_TYPE_FLAG_LOC] == FILE_TYPE_FILE) {
+                    return -1;
+                }
+
+                /* get the inode of the found directory and store it as the parent */
+                grandparent = parent;
+                parent = parent_block[i];
+                readBlock(mounted->diskNum, parent_block[i], parent_block);
+                
+                break;
+            }
+        }
+
+        /* if not at the last path and unable to find the directory, error */
+        if (path_index != strlen(dirName) + 1 && !dir_found_flag) {
+            return -1; // ERR: not a directory, directory not found
+        } 
+    }
+
+    // SYDNOTE: everything up until this point is char for char copied from createDir/removeDir,
+    // ^ all the code to navigate to the last dir in the given path 
+    // might want to consider putting all Dir funcs in separate file..?
+    // the only extra params we would need is the global mounted disk
+
+    /* make sure the last directory in the path does already exist */
+    /* skip if given dirName "/" */
+    if (!dir_found_flag && strcmp(dirName, "/") != 0) {
+        // trying to remove a directory that does not exist
+        return -1; // ERR: not a directory, directory not found
+    }
+
+    /* re-grab the block of the directory and remove every item in it */
+    readBlock(mounted->diskNum, parent, parent_block);
+
+    /* set the bounds for i based on wether in the superblock or a directory inode */
+    int start_bound = parent == 0 ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
+    int end_bound = parent == 0 ? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
+    for(int i = start_bound; i < end_bound; i++) {
+        if(parent_block[i]) {
+            memset(inode_buffer, 0, BLOCKSIZE);
+            readBlock(mounted->diskNum, parent_block[i], inode_buffer);
+
+            if (inode_buffer[FILE_TYPE_FLAG_LOC] == FILE_TYPE_FILE) {
+                /* SYDNOTE: code copied from deleteFile, should make a helper function
+                called smth like deleteFileByInode where all the same code except 
+                replace fd_table[FD] with the inode block number */
+                // Grab the block's inode
+                uint8_t inode[BLOCKSIZE]; 
+                readBlock(mounted->diskNum, parent_block[i], inode);
+
+                // Resetting the direct blocks so the data is "lost" since nothing is pointing to them
+                // Counter for clearing
+                int i = 0;
+                uint8_t data_block = inode[FILE_DATA_LOC + i++];
+                while(data_block != 0x0) {
+                    // Allocating each block as "free" and adding them to the linked list
+                    _free_block(data_block);
+                    data_block = inode[FILE_DATA_LOC + i++];
+                }
+
+                // Finally, freeing the inode
+                _free_block(parent_block[i]);
+            } else if (inode_buffer[FILE_TYPE_FLAG_LOC] == FILE_TYPE_DIR) {
+                uint8_t inode[BLOCKSIZE]; 
+                readBlock(mounted->diskNum, parent_block[i], inode);
+
+                char* dir_path = malloc(sizeof(dirName) + sizeof(inode[FILE_NAME_LOC]) + 1);
+                strcpy(dir_path, dirName);
+                strcat(dir_path, "/");
+                printf("%s\n", dir_path);
+                strcat(dir_path, inode_buffer + FILE_NAME_LOC);
+                printf("%s", dir_path);
+
+                tfs_removeAll(dir_path);
+                /* SYDNOTE: hmm maybe we do need a helper where removeall just calls a 
+                helper to remove all by given dir inode rather than dirname 
+                then we can use that to minimiz duplication between createDir, removeDir, 
+                removeAll, and then use it here to recurse */
+            }
+        }
+    }
+
+    /* if not the root directory,
+    once everything is removed, delete the current directory */
+    return grandparent == 0 ? 0 : tfs_removeDir(dirName);
 }
 
 /* ~ HELPER FUNCTIONS ~ */
@@ -782,6 +903,8 @@ int main(int argc, char* argv[]) {
     printf("%d\n", tfs_createDir("testDir/quincys/anisdir/ARAV"));
 
     printf("%d\n", tfs_removeDir("testDir/quincys/anisdir/ARAV"));
+
+    printf("%d\n", tfs_removeAll("testDir/quincys"));
 
 
     printf("AAA\n");
