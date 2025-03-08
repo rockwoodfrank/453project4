@@ -40,18 +40,18 @@ int tfs_mkfs(char *filename, int nBytes) {
     memset(buffer, 0, BLOCKSIZE);
 
     /* initialize free blocks */
-    buffer[BLOCK_TYPE] = FREE;
-    buffer[SAFETY_BYTE] = SAFETY_HEX;
-    buffer[FREE_PTR] = 0x01;
+    buffer[BLOCK_TYPE_LOC] = FREE;
+    buffer[SAFETY_BYTE_LOC] = SAFETY_HEX;
+    buffer[FREE_PTR_LOC] = 0x01;
     for(int i = 1; i < number_of_blocks; i++) {
 
         /* if not at the last block, link to the next free block */
         if(i+1 != number_of_blocks) {
-            buffer[FREE_PTR]++;
+            buffer[FREE_PTR_LOC]++;
 
         /* if at the last block, store the last free block */
         } else {
-            buffer[FREE_PTR] = 0x00;
+            buffer[FREE_PTR_LOC] = 0x00;
         }
 
         /* update the block with the correct type, safety, and pointer bytes */
@@ -62,9 +62,9 @@ int tfs_mkfs(char *filename, int nBytes) {
 
     /* Initialize superblock */
     memset(buffer, 0, BLOCKSIZE);
-    buffer[BLOCK_TYPE] = SUPERBLOCK;
-    buffer[SAFETY_BYTE] = SAFETY_HEX;
-    buffer[FREE_PTR] = 0x01;
+    buffer[BLOCK_TYPE_LOC] = SUPERBLOCK;
+    buffer[SAFETY_BYTE_LOC] = SAFETY_HEX;
+    buffer[FREE_PTR_LOC] = 0x01;
 
     if(writeBlock(disk_descriptor, SUPERBLOCK_DISKLOC, buffer) < 0) {
         return -1;
@@ -86,8 +86,8 @@ int tfs_mount(char* diskname) {
     // + make sure the disk file is perfectly divisible by blocksize ..? or nah
     uint8_t buffer[BLOCKSIZE];
     readBlock(diskNum, SUPERBLOCK_DISKLOC, buffer);
-    uint8_t byte0 = buffer[BLOCK_TYPE];
-    uint8_t byte1 = buffer[SAFETY_BYTE];
+    uint8_t byte0 = buffer[BLOCK_TYPE_LOC];
+    uint8_t byte1 = buffer[SAFETY_BYTE_LOC];
     if (byte0 != SUPERBLOCK || byte1 != SAFETY_HEX) {
         return -1;
     }
@@ -162,12 +162,12 @@ fileDescriptor tfs_openFile(char *name) {
         printf("%s\n", path_token);
 
         /* Look through the inode pointers in the rootblock */
-        for(int i=0; i<MAX_INODES; i++) {
+        for(int i=0; i<MAX_SUPBLOCK_INODES; i++) {
             dir_found_flag = false;
             memset(inode_buffer, 0, BLOCKSIZE);
 
             /* Account for the difference between the format of directory inodes and the superblock */
-            int z = parent == 0 ? i + FIRST_INODE_LOC : i + DIR_DATA_LOC;
+            int z = parent == 0 ? i + FIRST_SUPBLOCK_INODE_LOC : i + DIR_DATA_LOC;
 
             /* inode has not been found yet */
             if(z > BLOCKSIZE) {
@@ -209,10 +209,10 @@ fileDescriptor tfs_openFile(char *name) {
     readBlock(mounted->diskNum, parent, rootblock);
     
     /* Look through the inode pointers in the superblock */
-    for(int i=FIRST_INODE_LOC; i<BLOCKSIZE; i++) {
+    for(int i=FIRST_SUPBLOCK_INODE_LOC; i<BLOCKSIZE; i++) {
         memset(inode_buffer, 0, BLOCKSIZE);
         
-        int z = parent == 0 ? i + FIRST_INODE_LOC : i + DIR_DATA_LOC;
+        int z = parent == 0 ? i + FIRST_SUPBLOCK_INODE_LOC : i + DIR_DATA_LOC;
         if(z > BLOCKSIZE) {
             break;
         }
@@ -244,7 +244,7 @@ fileDescriptor tfs_openFile(char *name) {
     if(next_free_block) {
         
         /* find the first empty byte in the superblock and add the inode */
-        for(int i = FIRST_INODE_LOC; i < MAX_INODES; i++) {
+        for(int i = FIRST_SUPBLOCK_INODE_LOC; i < MAX_SUPBLOCK_INODES; i++) {
             if(!rootblock[i]) {
                 rootblock[i] = next_free_block;
                 break;
@@ -257,8 +257,8 @@ fileDescriptor tfs_openFile(char *name) {
             inode_buffer[z+FILE_NAME_LOC] = last_path[z]; // SYDNOTE DEFINE FILENAMELOC ?
             z++;
         }
-        inode_buffer[BLOCK_TYPE] = INODE;
-        inode_buffer[SAFETY_BYTE] = SAFETY_HEX;
+        inode_buffer[BLOCK_TYPE_LOC] = INODE;
+        inode_buffer[SAFETY_BYTE_LOC] = SAFETY_HEX;
         inode_buffer[FILE_TYPE_FLAG_LOC] = FILE_TYPE_FILE;
 
         // find the next available fd and set it to the next 
@@ -324,8 +324,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     // NOTE TO PROGRAMMER: I set this to size-1 so write of 256 bytes(or any number on the line)
     // will not take up extra blocks. Might cause problems in the future.
     //unSYDNOTE: can only do that if the last byte is a /0 ..?
-    int numBlocks = ((size-1) / DATA_SPACE) + 1;
-    //int numBlocks = (size / DATA_SPACE) + 1;
+    int numBlocks = ((size-1) / MAX_DATA_SPACE) + 1;
     // Writing those blocks to the file
     uint8_t temp_addr;
     uint8_t temp_block[BLOCKSIZE];
@@ -336,7 +335,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
         if (temp_addr) {
             readBlock(mounted->diskNum, temp_addr, temp_block);
             // Update important data
-            temp_block[BLOCK_TYPE] = FILEEX;
+            temp_block[BLOCK_TYPE_LOC] = FILEEX;
             //temp_block[2] = inode; TODO: if we want to link up parents, not sure right now
 
             // Copy the buffer data over to the block
@@ -432,42 +431,41 @@ int tfs_seek(fileDescriptor FD, int offset) {
 
 /* creates a directory, name could contain a “/”-delimited path) */
 int tfs_createDir(char* dirName) {
+    /* make sure the given dirName is not null or empty */
     if (dirName == NULL) {
-        return -1;
+        return -1;  // ERR: invalid input error
     }
 
-    // parse thru dirName to get path/dir/path and make sure valid
-    char* delim = "/";
-    char* path_token = strtok(dirName, delim);
-
-    if(strlen(path_token) > 8) {
-        return -1;
+    /* parse thru dirName to get path/dir/path and make sure valid */
+    char curPath[9];
+    int path_index = _parse_path(dirName, 0, curPath);
+    if (path_index < 0) {
+        return path_index;
     }
 
     /* The superblock effectively behaves as the inode for the root */
     int parent = 0;
     char last_path[9];
-    strcpy(last_path, path_token);
+    strcpy(last_path, curPath);
     bool dir_found_flag = false;
 
-    /* Get the superblock */
+    /* buffer to hold inode data and grab the super block */
+    char inode_buffer[BLOCKSIZE];
     uint8_t rootblock[BLOCKSIZE];
     readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, rootblock);
 
-    /* Buffer to hold inode data */
-    char inode_buffer[BLOCKSIZE];
-
-    while (path_token != NULL) {
-
-        printf("%s\n", path_token);
+    while (path_index != 0) {
+        printf("%s\n", curPath);
 
         /* Look through the inode pointers in the rootblock */
-        for(int i=0; i<MAX_INODES; i++) {
+        int start_bound = parent == 0 ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
+        int end_bound = parent == 0? MAX_SUPBLOCK_INODES : 
+        for(int i=0; i<MAX_SUPBLOCK_INODES; i++) {
             dir_found_flag = false;
             memset(inode_buffer, 0, BLOCKSIZE);
 
             /* Account for the difference between the format of directory inodes and the superblock */
-            int z = parent == 0 ? i + FIRST_INODE_LOC : i + DIR_DATA_LOC;
+            int z = parent == 0 ? i + FIRST_SUPBLOCK_INODE_LOC : i + DIR_DATA_LOC;
 
             /* inode has not been found yet */
             if(z > BLOCKSIZE) {
@@ -527,8 +525,8 @@ int tfs_createDir(char* dirName) {
     /* if there is an available free block... */
     if(next_free_block) {
         /* find the first empty byte in the parent block and add the inode */
-        for(int i = 0; i < MAX_INODES; i++) {
-            int z = parent == 0 ? i + FIRST_INODE_LOC : i + DIR_DATA_LOC;
+        for(int i = 0; i < MAX_SUPBLOCK_INODES; i++) {
+            int z = parent == 0 ? i + FIRST_SUPBLOCK_INODE_LOC : i + DIR_DATA_LOC;
             if(!rootblock[z]) {
                 rootblock[z] = next_free_block;
                 break;
@@ -541,8 +539,8 @@ int tfs_createDir(char* dirName) {
             inode_buffer[z+FILE_NAME_LOC] = last_path[z]; // SYDNOTE DEFINE FILENAMELOC ?
             z++;
         }
-        inode_buffer[BLOCK_TYPE] = INODE;
-        inode_buffer[SAFETY_BYTE] = SAFETY_HEX;
+        inode_buffer[BLOCK_TYPE_LOC] = INODE;
+        inode_buffer[SAFETY_BYTE_LOC] = SAFETY_HEX;
         inode_buffer[FILE_TYPE_FLAG_LOC] = FILE_TYPE_DIR;
 
         /* turn the free block into an inode */
@@ -575,7 +573,43 @@ int tfs_removeAll(char* dirName) {
     return 0;
 }
 
-/* Helper function for to get the the next available fd table index */
+/* ~ HELPER FUNCTIONS ~ */
+// SYDNOTE: make sure we are error handling the helper functions when using them
+
+/* _parse_path(): parse the given path to get the next directory/file at the given index
+    + store the path name in the given buffer, up to 8 chars
+    > return 0 if the current path name is the end of the file
+    > return < 0 if errors
+        - error if the next path name is more than 8 characters 
+        - error if the path name has un-readable character
+    > return the index of where the next path name starts */
+_parse_path(char* path, int index, char* buffer) {
+    /* stop at "\0" or "/" or until up to 8 chars */
+    int i = 0;
+    while (path[index] != "\0" && path[index] != "/" && i < 8) {
+        /* make sure the chars are valid, readable chars */
+        if (path[index] < 0x20) {
+            return -1;  // ERR; invalid input, char not a readable character
+        }
+
+        buffer[i++] = path[index++];
+    }
+    buffer[index] = "\0";
+
+    /* make sure the last char is the end of the name */
+    if (path[index] != "\0" && path[index] != "/") {
+        return -1; // ERR: invalid input, dir/file name too long
+    }
+
+    /* if at the end of the full path, set the index back to 0 */
+    if (path[index] == "\0") {
+        return 0;
+    }
+
+    return index++;
+}
+
+/* get the the next available fd table index */
 int _update_fd_table_index() {
     int original = fd_table_index;
 
@@ -602,8 +636,8 @@ int _update_fd_table_index() {
     return -1;
 }
 
-// Pop and return the next free block, and replace the superblock index
-// with that block's next block. Should return 0 if no more free blocks exist.
+/* Pop and return the next free block, and replace the superblock index
+ with that block's next block. Should return 0 if no more free blocks exist. */
 uint8_t _pop_free_block() {
     // Grab the superblock. This is done locally as some functions may not
     // need to store the superblock so this function does it just in case
@@ -611,12 +645,12 @@ uint8_t _pop_free_block() {
     readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock);
 
     uint8_t newBlock[BLOCKSIZE];
-    uint8_t next_free_block = superblock[FREE_PTR];
+    uint8_t next_free_block = superblock[FREE_PTR_LOC];
     /* then, grab the address for the next free inode*/
     readBlock(mounted->diskNum, next_free_block, newBlock);
     // TODO: return an error on a bad read
     /* update next free block */
-    superblock[FREE_PTR] = newBlock[FREE_PTR];
+    superblock[FREE_PTR_LOC] = newBlock[FREE_PTR_LOC];
     writeBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock);
     return next_free_block;
 }
@@ -630,13 +664,13 @@ int _free_block(uint8_t block_addr) {
 
     // Change block type
     uint8_t clean_block[BLOCKSIZE];
-    clean_block[BLOCK_TYPE] = FREE;
-    clean_block[SAFETY_BYTE] = SAFETY_HEX;
-    clean_block[FREE_PTR] = superblock[FREE_PTR];
+    clean_block[BLOCK_TYPE_LOC] = FREE;
+    clean_block[SAFETY_BYTE_LOC] = SAFETY_HEX;
+    clean_block[FREE_PTR_LOC] = superblock[FREE_PTR_LOC];
     writeBlock(mounted->diskNum, block_addr, clean_block);
     
     // Change free list
-    superblock[FREE_PTR] = block_addr;
+    superblock[FREE_PTR_LOC] = block_addr;
     writeBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock);
     // TODO: Error checking
     return 0;
