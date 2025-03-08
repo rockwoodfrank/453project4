@@ -60,36 +60,36 @@
 
 /* ~ MACROS FOR INODE BLOCK ~ */
     /* inode block constants */
-    #define FILE_TYPE_FILE      0x66                                // f
-    #define FILE_TYPE_DIR       0x64                                // d
+    #define FILE_TYPE_FILE      0x66                                    // f
+    #define FILE_TYPE_DIR       0x64                                    // d
     #define FILENAME_LENGTH     8
 
     /* inode block byte locations */
-    #define FILE_TYPE_FLAG_LOC  (0 + NUM_RESERVED_BYTES)            // 4
-    #define FILE_NAME_LOC       (FILE_TYPE_FLAG_LOC + 1)            // 5
+    #define FILE_TYPE_FLAG_LOC  (0 + NUM_RESERVED_BYTES)                // 4
+    #define FILE_NAME_LOC       (FILE_TYPE_FLAG_LOC + 1)                // 5
 
     /* file inode block byte locations */
-    #define FILE_SIZE_LOC       (FILE_NAME + FILENAME_LENGTH + 1)   // 14
-    #define FILE_OFFSET_LOC     (FILE_SIZE_LOC + 4)                 // 18
-    #define FILE_DATA_LOC       (FILE_OFFST_LOC + 4)                // 22
+    #define FILE_SIZE_LOC       (FILE_NAME_LOC + FILENAME_LENGTH + 1)   // 14
+    #define FILE_OFFSET_LOC     (FILE_SIZE_LOC + 4)                     // 18
+    #define FILE_DATA_LOC       (FILE_OFFSET_LOC + 4)                    // 22
 
     /* directory inode block byte locations */
-    #define DIR_DATA_LOC        (FILE_NAME + FILENAME_LENGTH + 1)   // 14
+    #define DIR_DATA_LOC        (FILE_NAME_LOC + FILENAME_LENGTH + 1)   // 14
 
     /* how many data blocks a file inode can hold */
-    #define MAX_FILE_DATA       (BLOCKSIZE - FILE_DATA_LOC)         // 234
+    #define MAX_FILE_DATA       (BLOCKSIZE - FILE_DATA_LOC)             // 234
 
     /* how many inode blocks a directory inode can hold */
-    #define MAX_DIR_INODES      (BLOCKSIZE - DIR_DATA_LOC)          // 242
+    #define MAX_DIR_INODES      (BLOCKSIZE - DIR_DATA_LOC)              // 242
 
 /* ^ MACROS FOR INODE BLOCK ^ */
 
 /* ~ MACROS FOR DATA/FILE-EXTENT BLOCKS */
     /* starting location of data in the data block */
-    #define FIRST_DATA_LOC      (0 + NUM_RESERVED_BYTES)            // 4
+    #define FIRST_DATA_LOC      (0 + NUM_RESERVED_BYTES)                // 4
 
     /* amount of bytes on a data block reserved for data */
-    #define MAX_DATA_SPACE      (BLOCKSIZE - FIRST_DATA_LOC)        // 252
+    #define MAX_DATA_SPACE      (BLOCKSIZE - FIRST_DATA_LOC)            // 252
 
 /* ^ MACROS FOR DATA/FILE-EXTENT BLOCKS ^ */
 

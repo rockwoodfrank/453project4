@@ -54,7 +54,7 @@ Byte    Value
 
 
 Sydney notes:
-- 
+- we need to be error checking readBlock everything, make a helper: safeReadBlock or smth ?
 
 TODO:
 - replace all 'return -1' with our error system
