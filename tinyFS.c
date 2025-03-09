@@ -221,8 +221,8 @@ fileDescriptor tfs_openFile(char *name) {
         
         /* find the first empty byte in the superblock and add the inode */
         /* set the bounds for i based on wether in the superblock or a directory inode */
-        int start_bound = current == 0 ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
-        int end_bound = current == 0 ? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
+        int start_bound = parent == 0 ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
+        int end_bound = parent == 0 ? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
         for(int i = start_bound; i < end_bound; i++) {
             if(!rootblock[i]) {
                 rootblock[i] = next_free_block;
@@ -579,7 +579,7 @@ int tfs_removeDir(char* dirName) {
     }
 
     /* remove the directory inode block and update its parent indoe */
-    _free_block(parent);
+    _free_block(current);
     uint8_t parent_block[BLOCKSIZE];
     readBlock(mounted->diskNum, parent, parent_block);
 
@@ -587,7 +587,7 @@ int tfs_removeDir(char* dirName) {
     int start_bound = parent == 0 ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
     int end_bound = parent == 0 ? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
     for(int i = start_bound; i < end_bound; i++) {
-        if(parent_block[i] == parent) {
+        if(parent_block[i] == current) {
             parent_block[i] = EMPTY_TABLEVAL;
         }
     }
@@ -727,7 +727,6 @@ int tfs_readFileInfo(fileDescriptor FD) {
 // SYDNOTE: make sure we are error handling the helper functions when using them
 
 
-
 /* _parse_path(): parse the given path to get the next directory/file at the given index
     + store the path name in the given buffer, up to the max filename length
     > return the index of where the next path name starts
@@ -825,30 +824,28 @@ int _free_block(uint8_t block_addr) {
 }
 
 // /* Uncomment and run this block if you want to test */
-// int main(int argc, char* argv[]) {
-//     if(argc > 1) {
-//         tfs_mkfs("SydneysDisk.dsk", 8192);    
-//     }
+int main(int argc, char* argv[]) {
+    if(argc > 1) {
+        tfs_mkfs("SydneysDisk.dsk", 8192);    
+    }
+
+    if(tfs_mount("SydneysDisk.dsk") < 0) {
+        printf("Failed to mount Sydney's disk\n");
+        return -1;
+    }
 
 
-//     if(tfs_mount("SydneysDisk.dsk") < 0) {
-//         printf("Failed to mount Sydney's disk\n");
-//         return -1;
-//     }
+    printf("%d\n", tfs_createDir("testDir"));
 
-//     printf("creating testDir\n");
-//     tfs_createDir("testDir");
-//     printf("created testDir\n");
+    printf("%d\n", tfs_createDir("testDir/quincys"));
 
-//     printf("%d\n", tfs_createDir("testDir/quincys"));
+    printf("%d\n", tfs_createDir("testDir/quincys/anisdir"));
 
-//     printf("%d\n", tfs_createDir("testDir/quincys/anisdir"));
+    printf("%d\n", tfs_createDir("testDir/quincys/anisdir/ARAV"));
 
-//     printf("%d\n", tfs_createDir("testDir/quincys/anisdir/ARAV"));
+    printf("%d\n", tfs_removeDir("testDir/quincys/anisdir/ARAV"));
 
-//     // printf("%d\n", tfs_removeDir("testDir/quincys/anisdir/ARAV"));
-
-//     // printf("%d\n", tfs_removeAll("testDir/quincys"));
+    printf("%d\n", tfs_removeAll("testDir/quincys"));
 
 
     //printf("AAA\n");
@@ -920,5 +917,5 @@ int _free_block(uint8_t block_addr) {
 //     // printf("File test6 has been opened with fd %d\n", fd);
 //     // printf("The inode of the file is %d\n\n", fd_table[fd]);
 
-//     // return 0;
-// }
+    return 0;
+}
