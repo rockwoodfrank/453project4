@@ -159,7 +159,7 @@ void testTfs_updateFile()
 
     // Testing making a new file
     fileDescriptor fileNum = tfs_openFile("test");
-    assert(fileNum != 0);
+    assert(fileNum >= 0);
     char *inode = (char*) verify_contents(diskName, sizeof(char) * BLOCKSIZE * 1, sizeof(char) *BLOCKSIZE);
     assert(inode[BLOCK_TYPE] == INODE);
     assert(inode[SAFETY_BYTE] == 0x44);
@@ -173,13 +173,61 @@ void testTfs_updateFile()
     assert(tfs_openFile("thisnameistoolong.txt") < 0);
 
     // Too many files
+    assert(tfs_unmount() == 0);
+    assert(tfs_mkfs(diskName, diskSize) == 0);
+    assert(tfs_mount(diskName) == 0);
+
     
+    for (int i = 1; i < MAX_INODES; i++)
+    {
+        char fileName[8];
+        snprintf(fileName, 8, "fil%d", i);
+        assert(tfs_openFile(fileName) >= 0);
+    }
+    assert(tfs_openFile("extra") < 0);
+    assert(tfs_unmount() == 0);
+    remove(diskName);
+
+    // Trying to write when no disk is mounted
+    assert(tfs_openFile("nodrv") < 0);
 
     // A file where the name is an empty string
+    assert(tfs_mkfs(diskName, DEFAULT_DISK_SIZE) == 0);
+    assert(tfs_mount(diskName) == 0);
+
+    assert(tfs_openFile("") < 0);
 
     // Opening the same file twice
+    int dupFileNum = tfs_openFile("abc");
+    int dupFileNum2 = tfs_openFile("abc");
+    assert(dupFileNum != dupFileNum2);
+
+    assert(tfs_unmount() == 0);
+    remove(diskName);
 
     // Writing some data to a file
+    assert(tfs_mkfs(diskName, DEFAULT_DISK_SIZE) == 0);
+    assert(tfs_mount(diskName) == 0);
+
+    fileDescriptor wFileNum = tfs_openFile("test");
+    assert(wFileNum >= 0);
+    char testStr[44] = "The quick brown fox jumps over the lazy dog";
+    assert(tfs_writeFile(wFileNum, testStr, 44) == 0);
+    char *wFileinode = verify_contents(diskName, sizeof(char) * BLOCKSIZE * 1, sizeof(char) * BLOCKSIZE);
+    char dataPtr = wFileinode[FILE_DATA_LOC];
+    char *wFileData = verify_contents(diskName, sizeof(char) * BLOCKSIZE * dataPtr, sizeof(char) * BLOCKSIZE);
+    
+    assert(wFileData[BLOCK_TYPE] == 0x03);
+    assert(wFileData[SAFETY_BYTE] == 0x44);
+    assert(wFileData[EMPTY] == 0x00);
+    for (int i = DATA_START; i < BLOCKSIZE; i++)
+    {
+        if (i < 44 + DATA_START)
+            assert(wFileData[i] == testStr[i - DATA_START]);
+        else
+            assert(wFileData[i] == 0x00);
+    }
+    
 
     // Writing a weird size of data to a file
 

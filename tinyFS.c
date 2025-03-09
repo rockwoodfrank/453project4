@@ -332,6 +332,8 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     // A value to keep track of where we are in the buffer
     int bufferHead = 0;
     for (int i = 0; i < numBlocks; i++) {
+        // A variable to keep track of how many bytes should be written so that bytes outside the buffer aren't included
+        int writeSize = size - (i * DATA_SPACE);
         temp_addr = _pop_free_block();
         if (temp_addr) {
             readBlock(mounted->diskNum, temp_addr, temp_block);
@@ -341,13 +343,15 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
 
             // Copy the buffer data over to the block
             // TODO: Change i's value into a macro? // SYDNOTE: could be same as one used for FILENAMELOC (rename if use the same for both)
-            for (int i = 4; i < BLOCKSIZE; i++) {
-                temp_block[i] = buffer[bufferHead++];
+            for (int j = 4; j < writeSize + 4; j++) {
+                temp_block[j] = buffer[bufferHead++];
             }
             writeBlock(mounted->diskNum, temp_addr, temp_block);
+            inode[FILE_DATA_LOC + i] = temp_addr;
         }
         // TODO: Error checking(probably a full disk)
     }
+    writeBlock(mounted->diskNum, fd_table[FD], inode);
 
     /* set the file offset to be 0 */
     tfs_seek(FD, 0); 
