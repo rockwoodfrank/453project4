@@ -220,10 +220,10 @@ void testTfs_updateFile()
     assert(wFileData[BLOCK_TYPE] == 0x03);
     assert(wFileData[SAFETY_BYTE] == 0x44);
     assert(wFileData[EMPTY] == 0x00);
-    for (int i = DATA_START; i < BLOCKSIZE; i++)
+    for (int i = FIRST_DATA_LOC; i < BLOCKSIZE; i++)
     {
-        if (i < 44 + DATA_START)
-            assert(wFileData[i] == testStr[i - DATA_START]);
+        if (i < 44 + FIRST_DATA_LOC)
+            assert(wFileData[i] == testStr[i - FIRST_DATA_LOC]);
         else
             assert(wFileData[i] == 0x00);
     }
