@@ -84,7 +84,7 @@
 
 /* ^ MACROS FOR INODE BLOCK ^ */
 
-/* ~ MACROS FOR DATA/FILE-EXTENT BLOCKS */
+/* ~ MACROS FOR DATA/FILE-EXTENT/FREE BLOCKS */
     /* starting location of data in the data block */
     #define FIRST_DATA_LOC      (0 + NUM_RESERVED_BYTES)                // 4
 

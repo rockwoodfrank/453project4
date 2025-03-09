@@ -420,7 +420,9 @@ int tfs_seek(fileDescriptor FD, int offset) {
     return 0;
 }
 
-/* ADDITIONAL FEATURES */
+/* ~ ADDITIONAL FEATURES ~ */
+
+/* (C) hierarchical directories */
 
 /* creates a directory, name could contain a “/”-delimited path) */
 int tfs_createDir(char* dirName) {
@@ -770,9 +772,7 @@ int tfs_removeAll(char* dirName) {
                 char* dir_path = malloc(sizeof(dirName) + sizeof(inode[FILE_NAME_LOC]) + 1);
                 strcpy(dir_path, dirName);
                 strcat(dir_path, "/");
-                printf("%s\n", dir_path);
                 strcat(dir_path, inode_buffer + FILE_NAME_LOC);
-                printf("%s", dir_path);
 
                 tfs_removeAll(dir_path);
                 /* SYDNOTE: hmm maybe we do need a helper where removeall just calls a 
@@ -786,6 +786,50 @@ int tfs_removeAll(char* dirName) {
     /* if not the root directory,
     once everything is removed, delete the current directory */
     return grandparent == 0 ? 0 : tfs_removeDir(dirName);
+}
+
+/* (B) directory listing and file renaming */
+
+/* renames a file. New name should be passed in. File has to be open. */
+int tfs_rename(fileDescriptor FD, char* newName) {
+    /* make sure the given inputs are valid */
+    if (newName == NULL || FD <= 0 || strlen(newName) > 8) {
+        return -1; // ERR: invalid input
+    }
+
+    // TODO (?): check if newName already exists -> helper func fs
+
+    /* read in the inode corresponding to the given fd */
+    uint8_t inode[BLOCKSIZE]; 
+    readBlock(mounted->diskNum, fd_table[FD], inode);
+
+    /* clear out the current inode's name and write in the new one */
+    char* filename = inode + FILE_NAME_LOC;
+    memset(filename, 0, FILENAME_LENGTH);
+
+    int z = 0;
+    while(newName[z] != '\000' && z < FILENAME_LENGTH) {
+        inode[FILE_NAME_LOC + z] = newName[z];
+        z++;
+    }
+    inode[FILE_NAME_LOC + z] = "\0";
+
+    /* update the inode */
+    if(writeBlock(mounted->diskNum, fd_table[FD], inode) < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+/* lists all the files and directories on the disk, print the list to stdout */
+int tfs_readdir() {
+    return 0;
+}
+
+/* (E) timestamps */
+int tfs_readFileInfo(fileDescriptor FD) {
+    return 0;
 }
 
 /* ~ HELPER FUNCTIONS ~ */
