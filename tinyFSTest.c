@@ -37,29 +37,29 @@ void testTfs_mkfs()
 
     fread(superBlock, sizeof(char), BLOCKSIZE, newDisk);
     // Test block type
-    assert(superBlock[BLOCK_TYPE] == 0x1);
+    assert(superBlock[BLOCK_TYPE_LOC] == 0x1);
     // Test magic number
-    assert(superBlock[SAFETY_BYTE] == 0x44);
+    assert(superBlock[SAFETY_BYTE_LOC] == 0x44);
 
     // Test free pointer
-    assert(superBlock[FREE_PTR] == 0x01);
+    assert(superBlock[FREE_PTR_LOC] == 0x01);
 
     // Empty
     assert(superBlock[3] == 0x0);
 
     // Test inode addresses are empty
-    for (int i = FIRST_INODE_LOC; i < BLOCKSIZE; i++)
+    for (int i = FIRST_SUPBLOCK_INODE_LOC; i < BLOCKSIZE; i++)
         assert(superBlock[i] == 0x0);
 
     // Test that the empty blocks are pointed to
 
     int counter = 0;
-    uint8_t next_ptr = superBlock[FREE_PTR];
+    uint8_t next_ptr = superBlock[FREE_PTR_LOC];
     while(next_ptr != 0x0)
     {
         counter++;
         fread(blankBlock, sizeof(char), BLOCKSIZE, newDisk);
-        next_ptr = blankBlock[FREE_PTR];
+        next_ptr = blankBlock[FREE_PTR_LOC];
     }
     assert(counter == (diskSize/BLOCKSIZE) -1);
     fclose(newDisk);
@@ -71,29 +71,29 @@ void testTfs_mkfs()
 
     fread(superBlock, sizeof(char), BLOCKSIZE, newDisk);
     // Test block type
-    assert(superBlock[BLOCK_TYPE] == 0x1);
+    assert(superBlock[BLOCK_TYPE_LOC] == 0x1);
     // Test magic number
-    assert(superBlock[SAFETY_BYTE] == 0x44);
+    assert(superBlock[SAFETY_BYTE_LOC] == 0x44);
 
     // Test free pointer
-    assert(superBlock[FREE_PTR] == 0x01);
+    assert(superBlock[FREE_PTR_LOC] == 0x01);
 
     // Empty
     assert(superBlock[3] == 0x0);
 
     // Test inode addresses are empty
-    for (int i = FIRST_INODE_LOC; i < BLOCKSIZE; i++)
+    for (int i = FIRST_SUPBLOCK_INODE_LOC; i < BLOCKSIZE; i++)
         assert(superBlock[i] == 0x0);
 
     // Test that the empty blocks are pointed to
 
     counter = 0;
-    next_ptr = superBlock[FREE_PTR];
+    next_ptr = superBlock[FREE_PTR_LOC];
     while(next_ptr != 0x0)
     {
         counter++;
         fread(blankBlock, sizeof(char), BLOCKSIZE, newDisk);
-        next_ptr = blankBlock[FREE_PTR];
+        next_ptr = blankBlock[FREE_PTR_LOC];
     }
     assert(counter == (diskSize/BLOCKSIZE) -1);
     fclose(newDisk);

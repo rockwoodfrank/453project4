@@ -54,11 +54,21 @@ Byte    Value
 
 
 Sydney notes:
-- 
+- we need to be error checking readBlock everything, make a helper: safeReadBlock or smth ?
+- for dir funcs, do we want to check if last char is / ..?
+- when ever using fd, need error for invalid FD
+	> fd pointing to 0 = error
+- do the specs say we actually need to check for dup names? like could open("test.txt") twice just make two "test.txt" files ? obv bad practice but technically ..?
 
 TODO:
 - replace all 'return -1' with our error system
 - if time: implement ls dir/../dir2 ?
+
+remaining funcs:
+- edit openFile to work with directories
+- tfs_readdir to list filenames and directories
+- edit funcs to add timestamps and then tfs_readFileInfo
+- edit things to match consistency checks
 
 For Quincy: 
 gcc tinyFS.c libDisk.c -g -Wall -pedantic -std=gnu99 -o testSydneyDisk
