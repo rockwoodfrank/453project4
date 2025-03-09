@@ -641,6 +641,11 @@ int tfs_removeDir(char* dirName) {
         }
     }
 
+    /* update the parent block */
+    if(writeBlock(mounted->diskNum, grandparent, parent_block) < 0) {
+        return -1;
+    }
+
     return 0;
 }
 
