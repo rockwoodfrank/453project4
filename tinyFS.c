@@ -311,7 +311,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     int bufferHead = 0;
     for (int i = 0; i < numBlocks; i++) {
         // A variable to keep track of how many bytes should be written so that bytes outside the buffer aren't included
-        int writeSize = size - (i * DATA_SPACE);
+        int writeSize = size - (i * MAX_DATA_SPACE);
         temp_addr = _pop_free_block();
         if (temp_addr) {
             readBlock(mounted->diskNum, temp_addr, temp_block);
