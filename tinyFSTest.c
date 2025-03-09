@@ -10,11 +10,13 @@
 void testTfs_mkfs();
 void testTfs_mount();
 void testTfs_updateFile();
+void* verify_contents(char *filePath, int location, size_t dataSize);
 
 int main(int argc, char *argv[]) {
     
     testTfs_mkfs();
     testTfs_mount();
+    testTfs_updateFile();
 
     printf("> tinyFS Tests passed.\n");
     return 0;
@@ -114,14 +116,14 @@ void testTfs_mkfs()
     assert(access("testFiles/unitTestDisk.dsk", F_OK) != 1);
 
     // Storing it in a directory that doesn't exist
-
+    assert(tfs_mkfs("testFiles/doesntExist/unitTestDisk.dsk", DEFAULT_DISK_SIZE) != 0);
 }
 
 void testTfs_mount()
 {
-    
+    int diskSize = DEFAULT_DISK_SIZE;
+    assert(tfs_mkfs("testFiles/test.dsk", diskSize) == 0);
     assert(tfs_mount("testFiles/test.dsk") == 0);
-    // TODO: add some write function that verifies the disk can be written to
 
     // tfs_unmount
     assert(tfs_unmount() == 0);
@@ -149,5 +151,90 @@ void testTfs_mount()
 
 void testTfs_updateFile()
 {
+    int diskSize = DEFAULT_DISK_SIZE;
+    char diskName[25] = "testFiles/updateTest.dsk";
+    remove(diskName);
+    assert(tfs_mkfs(diskName, diskSize) == 0);
+    assert(tfs_mount(diskName) == 0);
 
+    // Testing making a new file
+    fileDescriptor fileNum = tfs_openFile("test");
+    assert(fileNum != 0);
+    char *inode = (char*) verify_contents(diskName, sizeof(char) * BLOCKSIZE * 1, sizeof(char) *BLOCKSIZE);
+    assert(inode[BLOCK_TYPE] == INODE);
+    assert(inode[SAFETY_BYTE] == 0x44);
+    assert(inode[EMPTY] == 0x00);
+    assert(inode[FILE_TYPE_FLAG_LOC] == FILE_TYPE_FILE);
+    assert(strcmp(&(inode[FILE_NAME_LOC]), "test") == 0);
+    int fileSize = ((int *)inode)[FILE_SIZE_LOC];
+    assert(fileSize == 0);
+
+    // Testing making a new file where the name is too long
+    assert(tfs_openFile("thisnameistoolong.txt") < 0);
+
+    // Too many files
+    
+
+    // A file where the name is an empty string
+
+    // Opening the same file twice
+
+    // Writing some data to a file
+
+    // Writing a weird size of data to a file
+
+    // Writing to various files sequentially
+
+    // Writing to a file that doesn't exist
+
+    // Writing a file that's too big for the disk
+
+    // Writing a bunch of files, deleting some, writing some more
+
+    // Writing a HUGE file onto a HUGE disk
+
+    // Reading a byte from a file
+
+    // Reading a lot of bytes from a file
+
+    // Reading a byte out of range
+
+    // Seeking to the beginning of a file
+
+    // Seeking to the end of the file
+
+    // Seeking to the middle of a file
+
+    // Seeking in different files
+
+    // Seeking out of range of the file
+
+    // Deleting a file
+
+    // Trying to delete the same file twice
+
+    // Deleting all of the files on the disk
+
+    // Deleting a file that doesn't exist
+
+    // Writing to a deleted file
+
+    //Closing the file
+    
+    // Trying to close a file twice
+
+    // Closing a file that never existed
+
+    // Mounting and unmounting and making sure the data is still there
+
+}
+
+void* verify_contents(char *filePath, int location, size_t dataSize)
+{
+    FILE *readFile = fopen(filePath, "r");
+    void *compareAgainst = malloc(dataSize);
+    fseek(readFile, location, SEEK_SET);
+    fread(compareAgainst, dataSize, 1, readFile);
+    fclose(readFile);
+    return compareAgainst;
 }
