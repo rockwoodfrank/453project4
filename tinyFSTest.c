@@ -161,9 +161,9 @@ void testTfs_updateFile()
     fileDescriptor fileNum = tfs_openFile("test");
     assert(fileNum >= 0);
     char *inode = (char*) verify_contents(diskName, sizeof(char) * BLOCKSIZE * 1, sizeof(char) *BLOCKSIZE);
-    assert(inode[BLOCK_TYPE] == INODE);
-    assert(inode[SAFETY_BYTE] == 0x44);
-    assert(inode[EMPTY] == 0x00);
+    assert(inode[BLOCK_TYPE_LOC] == INODE);
+    assert(inode[SAFETY_BYTE_LOC] == 0x44);
+    assert(inode[EMPTY_BYTE_LOC] == 0x00);
     assert(inode[FILE_TYPE_FLAG_LOC] == FILE_TYPE_FILE);
     assert(strcmp(&(inode[FILE_NAME_LOC]), "test") == 0);
     int fileSize = ((int *)inode)[FILE_SIZE_LOC];
@@ -178,7 +178,7 @@ void testTfs_updateFile()
     assert(tfs_mount(diskName) == 0);
 
     
-    for (int i = 1; i < MAX_INODES; i++)
+    for (int i = 1; i < MAX_SUPBLOCK_INODES; i++)
     {
         char fileName[8];
         snprintf(fileName, 8, "fil%d", i);
@@ -217,9 +217,9 @@ void testTfs_updateFile()
     char dataPtr = wFileinode[FILE_DATA_LOC];
     char *wFileData = verify_contents(diskName, sizeof(char) * BLOCKSIZE * dataPtr, sizeof(char) * BLOCKSIZE);
     
-    assert(wFileData[BLOCK_TYPE] == 0x03);
-    assert(wFileData[SAFETY_BYTE] == 0x44);
-    assert(wFileData[EMPTY] == 0x00);
+    assert(wFileData[BLOCK_TYPE_LOC] == 0x03);
+    assert(wFileData[SAFETY_BYTE_LOC] == 0x44);
+    assert(wFileData[EMPTY_BYTE_LOC] == 0x00);
     for (int i = FIRST_DATA_LOC; i < BLOCKSIZE; i++)
     {
         if (i < 44 + FIRST_DATA_LOC)
