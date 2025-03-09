@@ -264,16 +264,6 @@ void testTfs_updateFile()
         //     assert(wFileData2[i + FIRST_DATA_LOC] == bigString[i]);
     }
 
-    // Writing an integer to a file
-
-    // Writing to various files sequentially
-
-    // Writing to a file that doesn't exist
-
-    // Writing a file that's too big for the disk
-
-    // Writing a bunch of files, deleting some, writing some more
-
     assert(tfs_unmount() == 0);
     remove(diskName);
 
@@ -291,17 +281,31 @@ void testTfs_updateFile()
         assert(fileByte == readStr[i]);
     }
 
-    // Reading a lot of bytes from a file
-
     // Reading a byte out of range
+    assert(tfs_readByte(testFile, &fileByte) != 0);
 
     // Seeking to the beginning of a file
+    assert(tfs_seek(testFile, 0) == 0);
+
+    assert(tfs_readByte(testFile, &fileByte) == 0);
+    assert(fileByte == 'h');
 
     // Seeking to the end of the file
+    assert(tfs_seek(testFile, 6) == 0);
+
+    assert(tfs_readByte(testFile, &fileByte) == 0);
+    assert(fileByte == '\0');
 
     // Seeking to the middle of a file
+    assert(tfs_seek(testFile, 3) == 0);
+
+    assert(tfs_readByte(testFile, &fileByte) == 0);
+    assert(fileByte == 'l');
 
     // Seeking in different files
+    fileDescriptor otherFile = tfs_openFile("another");
+    char seek_newString[23] = "this is another string";
+    assert(tfs_writeFile(otherFile, seek_newString, 23) == 0);
 
     // Seeking out of range of the file
 
@@ -316,6 +320,18 @@ void testTfs_updateFile()
     // Writing to a deleted file
 
     //Closing the file
+
+    // Opening a file, writing something, closing it, opening and reading it
+
+    // Writing an integer to a file
+
+    // Writing to various files sequentially
+
+    // Writing to a file that doesn't exist
+
+    // Writing a file that's too big for the disk
+
+    // Writing a bunch of files, deleting some, writing some more
     
     // Trying to close a file twice
 
