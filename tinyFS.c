@@ -122,6 +122,8 @@ int tfs_unmount() {
     free(mounted);
     mounted = NULL;
 
+    //TODO: close any open files in the FD table
+
     /* TODO: Make sure the file is unmounted "cleanly" */
     return returnVal;
 }
@@ -383,7 +385,8 @@ int tfs_readByte(fileDescriptor FD, char* buffer) {
     readBlock(mounted->diskNum, data_block_num, data_block);
 
     // store the byte at the offset into the given buffer
-    buffer[0] =  data_block[block_offset];
+    // NOTE: Rocky added the first_data_loc because otherwise it wasn't returning anything.
+    buffer[0] =  data_block[FIRST_DATA_LOC + block_offset];
     
     return 0;
 }
@@ -827,66 +830,49 @@ int _free_block(uint8_t block_addr) {
     return 0;
 }
 
-// /* Uncomment and run this block if you want to test */
-int main(int argc, char* argv[]) {
-    if(argc > 1) {
-        tfs_mkfs("SydneysDisk.dsk", 8192);    
-    }
+// // /* Uncomment and run this block if you want to test */
+// int main(int argc, char* argv[]) {
+//     if(argc > 1) {
+//         tfs_mkfs("SydneysDisk.dsk", 8192);    
+//     }
 
-    if(tfs_mount("SydneysDisk.dsk") < 0) {
-        printf("Failed to mount Sydney's disk\n");
-        return -1;
-    }
-
-
-    printf("%d\n", tfs_createDir("testDir"));
-
-    printf("%d\n", tfs_createDir("testDir/quincys"));
-
-    printf("%d\n", tfs_createDir("testDir/quincys/anisdir"));
-
-    printf("%d\n", tfs_createDir("testDir/quincys/anisdir/ARAV"));
-
-    printf("%d\n", tfs_removeDir("testDir/quincys/anisdir/ARAV"));
-
-    printf("%d\n", tfs_removeAll("testDir/quincys"));
+//     if(tfs_mount("SydneysDisk.dsk") < 0) {
+//         printf("Failed to mount Sydney's disk\n");
+//         return -1;
+//     }
 
 
-    //printf("AAA\n");
+//     printf("%d\n", tfs_createDir("testDir"));
 
-    /* Existing files */
+//     printf("%d\n", tfs_createDir("testDir/quincys"));
 
-    // char filetest5[] = "anisf";
-    // int fd = tfs_openFile(filetest5);
-    // printf("File anisf has been opened with fd %d\n", fd);
-    // printf("The inode of the file is %d\n\n", fd_table[fd]);
+//     printf("%d\n", tfs_createDir("testDir/quincys/anisdir"));
 
-    // char filetest6[] = "boo";
-    // fd = tfs_openFile(filetest6);
-    // printf("File boo has been opened with fd %d\n", fd);
-    // printf("The inode of the file is %d\n\n", fd_table[fd]);
+//     printf("%d\n", tfs_createDir("testDir/quincys/anisdir/ARAV"));
 
-    // char filetest7[] = "testDir/quincys/whoo";
-    // fd = tfs_openFile(filetest7);
-    // printf("File whoo has been opened with fd %d\n", fd);
-    // printf("The inode of the file is %d\n\n", fd_table[fd]);
+//     printf("%d\n", tfs_removeDir("testDir/quincys/anisdir/ARAV"));
 
-    // char buffer[100];
-    // tfs_readByte(fd, buffer);
+//     printf("%d\n", tfs_removeAll("testDir/quincys"));
 
-    // fd = tfs_openFile("test2");
-    // printf("File test2 has been opened with fd %d\n", fd);
-    // printf("The inode of the file is %d\n\n", fd_table[fd]);
 
-    // char filetest6[] = "boo";
-    // fd = tfs_openFile(filetest6);
-    // printf("File boo has been opened with fd %d\n", fd);
-    // printf("The inode of the file is %d\n\n", fd_table[fd]);
+//     //printf("AAA\n");
 
-//     char filetest7[] = "testDir/quincys/whoo";
-//     fd = tfs_openFile(filetest7);
-//     printf("File whoo has been opened with fd %d\n", fd);
-//     printf("The inode of the file is %d\n\n", fd_table[fd]);
+//     /* Existing files */
+
+//     // char filetest5[] = "anisf";
+//     // int fd = tfs_openFile(filetest5);
+//     // printf("File anisf has been opened with fd %d\n", fd);
+//     // printf("The inode of the file is %d\n\n", fd_table[fd]);
+
+//     // char filetest6[] = "boo";
+//     // fd = tfs_openFile(filetest6);
+//     // printf("File boo has been opened with fd %d\n", fd);
+//     // printf("The inode of the file is %d\n\n", fd_table[fd]);
+
+//     // char filetest7[] = "testDir/quincys/whoo";
+//     // fd = tfs_openFile(filetest7);
+//     // printf("File whoo has been opened with fd %d\n", fd);
+//     // printf("The inode of the file is %d\n\n", fd_table[fd]);
 
 //     // char buffer[100];
 //     // tfs_readByte(fd, buffer);
@@ -895,31 +881,48 @@ int main(int argc, char* argv[]) {
 //     // printf("File test2 has been opened with fd %d\n", fd);
 //     // printf("The inode of the file is %d\n\n", fd_table[fd]);
 
-//     // fd = tfs_openFile("test3");
-//     // printf("File test3 has been opened with fd %d\n", fd);
+//     // char filetest6[] = "boo";
+//     // fd = tfs_openFile(filetest6);
+//     // printf("File boo has been opened with fd %d\n", fd);
 //     // printf("The inode of the file is %d\n\n", fd_table[fd]);
 
-//     // /* Make this file */
-//     // fd = tfs_openFile("test4");
-//     // printf("File test4 has been opened with fd %d\n", fd);
-//     // printf("The inode of the file is %d\n\n", fd_table[fd]);
+// //     char filetest7[] = "testDir/quincys/whoo";
+// //     fd = tfs_openFile(filetest7);
+// //     printf("File whoo has been opened with fd %d\n", fd);
+// //     printf("The inode of the file is %d\n\n", fd_table[fd]);
 
-//     // if(tfs_closeFile(fd) < 0) {
-//     //     printf("Closing file failed\n");
-//     //     return -1;
-//     // }
+// //     // char buffer[100];
+// //     // tfs_readByte(fd, buffer);
 
-//     // fd = tfs_openFile("test5");
-//     // printf("File test5 has been opened with fd %d\n", fd);
-//     // printf("The inode of the file is %d\n\n", fd_table[fd]);
+// //     // fd = tfs_openFile("test2");
+// //     // printf("File test2 has been opened with fd %d\n", fd);
+// //     // printf("The inode of the file is %d\n\n", fd_table[fd]);
 
-//     // fd = tfs_openFile("test6");
-//     // printf("File test6 has been opened with fd %d\n", fd);
-//     // printf("The inode of the file is %d\n\n", fd_table[fd]);
+// //     // fd = tfs_openFile("test3");
+// //     // printf("File test3 has been opened with fd %d\n", fd);
+// //     // printf("The inode of the file is %d\n\n", fd_table[fd]);
 
-//     // fd = tfs_openFile("testDir/cow");
-//     // printf("File test6 has been opened with fd %d\n", fd);
-//     // printf("The inode of the file is %d\n\n", fd_table[fd]);
+// //     // /* Make this file */
+// //     // fd = tfs_openFile("test4");
+// //     // printf("File test4 has been opened with fd %d\n", fd);
+// //     // printf("The inode of the file is %d\n\n", fd_table[fd]);
 
-    return 0;
-}
+// //     // if(tfs_closeFile(fd) < 0) {
+// //     //     printf("Closing file failed\n");
+// //     //     return -1;
+// //     // }
+
+// //     // fd = tfs_openFile("test5");
+// //     // printf("File test5 has been opened with fd %d\n", fd);
+// //     // printf("The inode of the file is %d\n\n", fd_table[fd]);
+
+// //     // fd = tfs_openFile("test6");
+// //     // printf("File test6 has been opened with fd %d\n", fd);
+// //     // printf("The inode of the file is %d\n\n", fd_table[fd]);
+
+// //     // fd = tfs_openFile("testDir/cow");
+// //     // printf("File test6 has been opened with fd %d\n", fd);
+// //     // printf("The inode of the file is %d\n\n", fd_table[fd]);
+
+//     return 0;
+// }
