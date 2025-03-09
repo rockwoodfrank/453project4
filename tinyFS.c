@@ -130,16 +130,6 @@ fileDescriptor tfs_openFile(char *name) {
         return -1;
     }
 
-    /* truncate name to be the first 8 chars */
-    // int z = 0;
-    // char name_trunc[9]; //SYDNOTE: FILENAME+LENGTH + 1 ?
-    // memset(name_trunc, 0, 9);
-    // while(z < 8 && name[z] != '\0') {
-    //     name_trunc[z] = name[z];
-    //     z++;
-
-    // }
-
     uint8_t rootblock[BLOCKSIZE];
     readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, rootblock);
 
@@ -154,7 +144,9 @@ fileDescriptor tfs_openFile(char *name) {
     }
 
     int parent = 0;
+    int found_inode;
     char last_path[9];
+    strcpy(last_path, path_token);
     bool dir_found_flag = false;
 
     while (path_token != NULL) {
@@ -178,12 +170,15 @@ fileDescriptor tfs_openFile(char *name) {
             if(rootblock[z]) {
                 /* Grab the name from the inode buffer */
                 readBlock(mounted->diskNum, rootblock[z], inode_buffer);
-                char* filename = inode_buffer + FILE_NAME_LOC; //SYDNOTE #DEFINE FILELOC 4 might be more clean
+                char* filename = inode_buffer + FILE_NAME_LOC;
                 /* if found the file, get a new fd and update the fd table*/
                 if(strcmp(path_token, filename) == 0) {
                     printf("Found directory at inode %d\n", rootblock[z]);   
+
                     //SYDNOTE: make sure found is a dir not a file
                     dir_found_flag = true; 
+
+                    found_inode = rootblock[z];
 
                     /* get the inode of the found directory and store it as the parent */
                     parent = rootblock[z];
@@ -205,36 +200,17 @@ fileDescriptor tfs_openFile(char *name) {
         }
     }
 
+    if (dir_found_flag) {
+        /* file already exists */
+        int fd_table_index = _update_fd_table_index();
+        fd_table[fd_table_index] = found_inode;
+        return fd_table_index;
+
+    } 
+
     /* Get the parent */
     readBlock(mounted->diskNum, parent, rootblock);
     
-    /* Look through the inode pointers in the superblock */
-    for(int i=FIRST_INODE_LOC; i<BLOCKSIZE; i++) {
-        memset(inode_buffer, 0, BLOCKSIZE);
-        
-        int z = parent == 0 ? i + FIRST_INODE_LOC : i + DIR_DATA_LOC;
-        if(z > BLOCKSIZE) {
-            break;
-        }
-
-        /* Skip over if we have an empty block, meaning the file doesn't exist */
-        if(rootblock[z]) {
-            /* Grab the name from the inode buffer */
-            readBlock(mounted->diskNum, rootblock[z], inode_buffer);
-            char* filename = inode_buffer + FILE_NAME_LOC;
-            /* if found the file, get a new fd and update the fd table*/
-            if(strcmp(last_path, filename) == 0) {
-                printf("Found file at inode %d\n", rootblock[z]);
-                if(_update_fd_table_index() < 0) {
-                    return -1;
-                }
-
-                fd_table[fd_table_index] = rootblock[z];
-                return fd_table_index;
-            }
-        }
-    }
-
     /* File not found, so create inode for it */
     uint8_t next_free_block = _pop_free_block();
     readBlock(mounted->diskNum, parent, rootblock);
@@ -244,9 +220,10 @@ fileDescriptor tfs_openFile(char *name) {
     if(next_free_block) {
         
         /* find the first empty byte in the superblock and add the inode */
-        for(int i = FIRST_INODE_LOC; i < MAX_INODES; i++) {
-            if(!rootblock[i]) {
-                rootblock[i] = next_free_block;
+        for(int i = 0; i < MAX_INODES; i++) {
+            int z = parent == 0 ? i + FIRST_INODE_LOC : i + DIR_DATA_LOC;
+            if(!rootblock[z]) {
+                rootblock[z] = next_free_block;
                 break;
             }
         }
@@ -667,19 +644,20 @@ int main(int argc, char* argv[]) {
     printf("%d\n", tfs_createDir(filename4));
 
 
-    printf("AAA\n");
+    //printf("AAA\n");
 
     /* Existing files */
+    int fd;
 
-    char filetest5[] = "anisf";
-    int fd = tfs_openFile(filetest5);
-    printf("File anisf has been opened with fd %d\n", fd);
-    printf("The inode of the file is %d\n\n", fd_table[fd]);
+    // char filetest5[] = "anisf";
+    // int fd = tfs_openFile(filetest5);
+    // printf("File anisf has been opened with fd %d\n", fd);
+    // printf("The inode of the file is %d\n\n", fd_table[fd]);
 
-    char filetest6[] = "boo";
-    fd = tfs_openFile(filetest6);
-    printf("File boo has been opened with fd %d\n", fd);
-    printf("The inode of the file is %d\n\n", fd_table[fd]);
+    // char filetest6[] = "boo";
+    // fd = tfs_openFile(filetest6);
+    // printf("File boo has been opened with fd %d\n", fd);
+    // printf("The inode of the file is %d\n\n", fd_table[fd]);
 
     char filetest7[] = "testDir/quincys/whoo";
     fd = tfs_openFile(filetest7);
