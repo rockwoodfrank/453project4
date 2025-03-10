@@ -132,7 +132,7 @@ fileDescriptor tfs_openFile(char *name);
 /* Closes the file, de-allocates all system resources, and removes table entry */
 int tfs_closeFile(fileDescriptor FD);
 
-/* Writes buffer ‘buffer’ of size ‘size’, which represents an entire
+/* Writes buffer ‘buffer’ of size ‘size’ BYTES, which represents an entire
 file’s content, to the file system. Previous content (if any) will be
 completely lost. Sets the file pointer to 0 (the start of file) when
 done. Returns success/error codes. */

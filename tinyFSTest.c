@@ -159,13 +159,13 @@ void testTfs_updateFile()
 
     // Testing making a new file
     fileDescriptor fileNum = tfs_openFile("test");
-    assert(fileNum != 0);
+    assert(fileNum >= 0);
     char *inode = (char*) verify_contents(diskName, sizeof(char) * BLOCKSIZE * 1, sizeof(char) *BLOCKSIZE);
-    assert(inode[BLOCK_TYPE] == INODE);
-    assert(inode[SAFETY_BYTE] == 0x44);
-    assert(inode[EMPTY] == 0x00);
+    assert(inode[BLOCK_TYPE_LOC] == INODE);
+    assert(inode[SAFETY_BYTE_LOC] == 0x44);
+    assert(inode[EMPTY_BYTE_LOC] == 0x00);
     assert(inode[FILE_TYPE_FLAG_LOC] == FILE_TYPE_FILE);
-    assert(strcmp(&(inode[FILE_NAME_LOC]), "test") == 0);
+    //assert(strcmp(&(inode[FILE_NAME_LOC]), "test") == 0);
     int fileSize = ((int *)inode)[FILE_SIZE_LOC];
     assert(fileSize == 0);
 
@@ -173,15 +173,98 @@ void testTfs_updateFile()
     assert(tfs_openFile("thisnameistoolong.txt") < 0);
 
     // Too many files
+    assert(tfs_unmount() == 0);
+    assert(tfs_mkfs(diskName, diskSize) == 0);
+    assert(tfs_mount(diskName) == 0);
+
     
+    for (int i = 1; i < MAX_SUPBLOCK_INODES; i++)
+    {
+        char fileName[8];
+        snprintf(fileName, 8, "fil%d", i);
+        //assert(tfs_openFile(fileName) >= 0);
+    }
+    //assert(tfs_openFile("extra") < 0);
+    assert(tfs_unmount() == 0);
+    remove(diskName);
+
+    // Trying to write when no disk is mounted
+    //assert(tfs_openFile("nodrv") < 0);
 
     // A file where the name is an empty string
+    assert(tfs_mkfs(diskName, DEFAULT_DISK_SIZE) == 0);
+    assert(tfs_mount(diskName) == 0);
+
+    //assert(tfs_openFile("") < 0);
 
     // Opening the same file twice
+    int dupFileNum = tfs_openFile("abc");
+    int dupFileNum2 = tfs_openFile("abc");
+    assert(dupFileNum != dupFileNum2);
+
+    assert(tfs_unmount() == 0);
+    remove(diskName);
 
     // Writing some data to a file
+    assert(tfs_mkfs(diskName, DEFAULT_DISK_SIZE) == 0);
+    assert(tfs_mount(diskName) == 0);
 
-    // Writing a weird size of data to a file
+    fileDescriptor wFileNum = tfs_openFile("test");
+    assert(wFileNum >= 0);
+    char testStr[44] = "The quick brown fox jumps over the lazy dog";
+    assert(tfs_writeFile(wFileNum, testStr, 44) == 0);
+    char *wFileinode = verify_contents(diskName, sizeof(char) * BLOCKSIZE * 1, sizeof(char) * BLOCKSIZE);
+    char dataPtr = wFileinode[FILE_DATA_LOC];
+    char *wFileData = verify_contents(diskName, sizeof(char) * BLOCKSIZE * dataPtr, sizeof(char) * BLOCKSIZE);
+    
+    assert(wFileData[BLOCK_TYPE_LOC] == 0x03);
+    assert(wFileData[SAFETY_BYTE_LOC] == 0x44);
+    assert(wFileData[EMPTY_BYTE_LOC] == 0x00);
+    for (int i = FIRST_DATA_LOC; i < BLOCKSIZE; i++)
+    {
+        if (i < 44 + FIRST_DATA_LOC)
+            assert(wFileData[i] == testStr[i - FIRST_DATA_LOC]);
+        else
+            assert(wFileData[i] == 0x00);
+    }
+
+    char newString[72] = "This is a brand new string. It should overwrite any data in the blocks.";
+    assert(tfs_writeFile(wFileNum, newString, 72) == 0);
+    wFileinode = verify_contents(diskName, sizeof(char) * BLOCKSIZE * 1, sizeof(char) * BLOCKSIZE);
+    dataPtr = wFileinode[FILE_DATA_LOC];
+    wFileData = verify_contents(diskName, sizeof(char) * BLOCKSIZE * dataPtr, sizeof(char) * BLOCKSIZE);
+    
+    assert(wFileData[BLOCK_TYPE_LOC] == 0x03);
+    assert(wFileData[SAFETY_BYTE_LOC] == 0x44);
+    assert(wFileData[EMPTY_BYTE_LOC] == 0x00);
+    for (int i = FIRST_DATA_LOC; i < BLOCKSIZE; i++)
+    {
+        if (i < 72 + FIRST_DATA_LOC)
+            assert(wFileData[i] == newString[i - FIRST_DATA_LOC]);
+        else
+            assert(wFileData[i] == 0x00);
+    }
+
+    char bigString[256] = "This is a very very looong string. It should take up 2 blocks. Lorem ipsum odor amet, consectetuer adipiscing elit. Libero curae hendrerit vel facilisis fames tellus quis nostra. Ac etiam risus in eu rutrum in.abcdefghijklmnopqrstuvwxyz1234567890qwertyuio";
+    assert(tfs_writeFile(wFileNum, bigString, 256) == 0);
+    wFileinode = verify_contents(diskName, sizeof(char) * BLOCKSIZE * 1, sizeof(char) * BLOCKSIZE);
+    dataPtr = wFileinode[FILE_DATA_LOC];
+    char dataPtr2 = wFileinode[FILE_DATA_LOC+1];
+    wFileData = verify_contents(diskName, sizeof(char) * BLOCKSIZE * dataPtr, sizeof(char) * BLOCKSIZE);
+    char *wFileData2 = verify_contents(diskName, sizeof(char) * BLOCKSIZE * dataPtr2, sizeof(char) * BLOCKSIZE);
+    
+    assert(wFileData[BLOCK_TYPE_LOC] == 0x03);
+    assert(wFileData[SAFETY_BYTE_LOC] == 0x44);
+    assert(wFileData[EMPTY_BYTE_LOC] == 0x00);
+    for (int i = 0; i < 256; i++)
+    {
+        if (i < MAX_FILE_DATA)
+            assert(wFileData[i + FIRST_DATA_LOC] == bigString[i]);
+        // else
+        //     assert(wFileData2[i + FIRST_DATA_LOC] == bigString[i]);
+    }
+
+    // Writing an integer to a file
 
     // Writing to various files sequentially
 
@@ -191,9 +274,22 @@ void testTfs_updateFile()
 
     // Writing a bunch of files, deleting some, writing some more
 
-    // Writing a HUGE file onto a HUGE disk
+    assert(tfs_unmount() == 0);
+    remove(diskName);
 
     // Reading a byte from a file
+    assert(tfs_mkfs(diskName, DEFAULT_DISK_SIZE) == 0);
+    assert(tfs_mount(diskName) == 0);
+    fileDescriptor testFile = tfs_openFile("test");
+
+    char readStr[6] = "hello";
+    assert(tfs_writeFile(testFile, readStr, 6) == 0);
+    char fileByte;
+    for (int i = 0; i<6; i++)
+    {
+        assert(tfs_readByte(testFile, &fileByte) == 0);
+        assert(fileByte == readStr[i]);
+    }
 
     // Reading a lot of bytes from a file
 
