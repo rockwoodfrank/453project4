@@ -19,6 +19,7 @@ int     _free_block(uint8_t block_addr);
 int     _parse_path(char* path, int index, char* buffer);
 int     _navigate_to_dir(char* dirName, char* last_path_h, int* current_h, int* parent_h, int searching_for); 
 int     _print_directory_contents(int block, int tabs);
+int     _write_long(char* block, unsigned long longVal, char loc);
 
 int tfs_mkfs(char *filename, int nBytes) {
     /* error if given 0 bytes */
@@ -157,6 +158,10 @@ fileDescriptor tfs_openFile(char *name) {
         /* file already exists */
         int fd_table_index = _update_fd_table_index();
         fd_table[fd_table_index] = parent;
+        char *inode = malloc(BLOCKSIZE * sizeof(char));
+        readBlock(mounted->diskNum, parent, inode);
+        _write_long(inode, time(NULL), FILE_ACCESSTIME_LOC);
+        writeBlock(mounted->diskNum, parent, inode);
         return fd_table_index;
 
     } 
@@ -179,6 +184,10 @@ fileDescriptor tfs_openFile(char *name) {
     inode_buffer[BLOCK_TYPE_LOC] = INODE;
     inode_buffer[SAFETY_BYTE_LOC] = SAFETY_HEX;
     inode_buffer[FILE_TYPE_FLAG_LOC] = FILE_TYPE_FILE;
+    // Writing the time, since it's 8 bytes
+    _write_long(inode_buffer, time(NULL), FILE_CREATEDTIME_LOC);
+    _write_long(inode_buffer, time(NULL), FILE_MODIFIEDTIME_LOC);
+    _write_long(inode_buffer, time(NULL), FILE_ACCESSTIME_LOC);
     int z = 0;
     while(cur_path[z] != '\000') {
         inode_buffer[z+FILE_NAME_LOC] = cur_path[z]; 
@@ -248,6 +257,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     inode[i + 1] = (size >> 16) & 0xFF;
     inode[i + 2] = (size >> 8) & 0xFF;
     inode[i + 3] = size & 0xFF;
+    _write_long(inode, time(NULL), FILE_MODIFIEDTIME_LOC);
 
     // Resetting the direct blocks so the data is "lost" since nothing is pointing to them
     // Counter for clearing
@@ -353,6 +363,7 @@ int tfs_readByte(fileDescriptor FD, char* buffer) {
     // Grab the block's inode
     uint8_t inode[BLOCKSIZE]; 
     readBlock(mounted->diskNum, fd_table[FD], inode);
+    _write_long(inode, time(NULL), FILE_ACCESSTIME_LOC);
 
     // get file offset from inode block and convert to block & block offset
     int i = FILE_OFFSET_LOC;
@@ -544,6 +555,9 @@ int tfs_createDir(char* dirName) {
     inode_buffer[BLOCK_TYPE_LOC] = INODE;
     inode_buffer[SAFETY_BYTE_LOC] = SAFETY_HEX;
     inode_buffer[FILE_TYPE_FLAG_LOC] = FILE_TYPE_DIR;
+    _write_long(inode_buffer, time(NULL), FILE_CREATEDTIME_LOC);
+    _write_long(inode_buffer, time(NULL), FILE_ACCESSTIME_LOC);
+    _write_long(inode_buffer, time(NULL), FILE_MODIFIEDTIME_LOC);
     int z = 0;
     while(cur_path[z] != '\000') {
         inode_buffer[FILE_NAME_LOC + z] = cur_path[z];
@@ -803,17 +817,49 @@ int tfs_readdir() {
 
 /* (E) timestamps */
 /* returns the file’s creation time or all info */
-int tfs_readFileInfo(fileDescriptor FD) {
-
-    if(!fd_table[FD]) {
-        return -1;
-    }
+void tfs_readFileInfo(fileDescriptor FD) {
+    time_t *createdTime;
+    time_t *modifiedTime;
+    time_t *accessedTime;
+    char *fileName;
+    int *fileSize;
+    uint8_t inode[BLOCKSIZE];
 
     if (mounted == NULL) {
         return -1;
     }
-    return 0;
-} 
+    
+    if(fd_table[FD] != 0)
+    {
+        
+        readBlock(mounted->diskNum, fd_table[FD], inode);
+        fileName = &inode[FILE_NAME_LOC];
+        // Print file name
+        printf("Name:\t\t%s\n", fileName);
+        if (inode[FILE_TYPE_FLAG_LOC] == FILE_TYPE_FILE)
+        {
+            // Print file size if it's a file
+            fileSize = (int *)&inode[FILE_SIZE_LOC];
+            printf("Size:\t\t%d bytes\n", *fileSize);
+
+            // Print times
+            createdTime = (time_t *)&inode[FILE_CREATEDTIME_LOC];
+            accessedTime = (time_t *)&inode[FILE_ACCESSTIME_LOC];
+            modifiedTime = (time_t *)&inode[FILE_MODIFIEDTIME_LOC];
+        } else if (inode[FILE_TYPE_FLAG_LOC] == FILE_TYPE_DIR)
+        {
+            printf("Directory\n");
+            // Print times
+            createdTime = (time_t *)&inode[DIR_CREATEDTIME_LOC];
+            accessedTime = (time_t *)&inode[DIR_ACCESSTIME_LOC];
+            modifiedTime = (time_t *)&inode[DIR_MODIFIEDTIME_LOC];
+        }
+        printf("Created:\t%s", ctime(createdTime));
+        printf("Modified:\t%s", ctime(modifiedTime));
+        printf("Accessed:\t%s", ctime(accessedTime));
+    }
+    return;
+}
 
 /* ~ HELPER FUNCTIONS ~ */
 // SYDNOTE: make sure we are error handling the helper functions when using them
@@ -952,7 +998,18 @@ int _print_directory_contents(int block, int tabs) {
     return 0;
 }
 
-/* Uncomment and run this block if you want to test */
+// Writing longs to a block, specifically for timestamps
+int _write_long(char* block, unsigned long longVal, char loc)
+{
+    char *longConverted = (char *)&longVal;
+    for (int i = 0; i < 8; i ++)
+    {
+        block[loc+i] = longConverted[i];
+    }
+    return 0;
+}
+
+// // // /* Uncomment and run this block if you want to test */
 // int main(int argc, char* argv[]) {
 //     if(argc > 1) {
 //         tfs_mkfs("SydneysDisk.dsk", 8192);    

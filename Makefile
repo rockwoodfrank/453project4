@@ -51,9 +51,13 @@ libDiskTest: libDisk.h libDisk.o libDiskTest.c
 tinyFSTest: tinyFS.h libDisk.h tinyFS.o libDisk.o tinyFSTest.c
 	$(CC) $(CFLAGS) -o tinyFSTest tinyFS.o libDisk.o tinyFSTest.c
 
-unitTests: libDiskTest tinyFSTest
+timeStampTest: tinyFS.h libDisk.h tinyFS.o libDisk.o timeStampTest.c
+	$(CC) $(CFLAGS) -o timeStampTest tinyFS.o libDisk.o timeStampTest.c
+
+unitTests: libDiskTest tinyFSTest timeStampTest
 	./libDiskTest
 	./tinyFSTest
+	./timeStampTest
 
 # Add any commands to run tests here, then we have a single command to run all tests.
 test: clean unitTests runBasicDiskTest runBasicTinyFSTest
