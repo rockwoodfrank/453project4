@@ -119,7 +119,7 @@ int tfs_mount(char* diskname) {
 int tfs_unmount() {
     /* make sure there is a mounted tfs */
     if (mounted == NULL) {
-        return ERR_NOTHING_TO_UNMOUNT;
+        return ERR_NO_DISK_MOUNTED;
     }
 
     /* Free the mounted variable and change it to a null pointer */
@@ -164,7 +164,7 @@ fileDescriptor tfs_openFile(char *name) {
     /* get next free block */
     uint8_t next_free_block = _pop_free_block();
     if(!next_free_block) {
-        return ERR_OUT_OF_SPACE;
+        return ERR_DISK_OUT_OF_SPACE;
     }
     
     /* find the next available fd and set it to the next */ 
@@ -281,7 +281,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
         int writeSize = size - (i * MAX_DATA_SPACE);
         temp_addr = _pop_free_block();
         if (!temp_addr) {
-            return ERR_OUT_OF_SPACE;
+            return ERR_DISK_OUT_OF_SPACE;
         }
         if ((ERR = readBlock(mounted->diskNum, temp_addr, temp_block)) < 0) {
             return ERR;
@@ -573,7 +573,7 @@ int tfs_createDir(char* dirName) {
     /* get the next free block to store the new inode in */
     uint8_t next_free_block = _pop_free_block();
     if(!next_free_block) {
-        return ERR_OUT_OF_SPACE;
+        return ERR_DISK_OUT_OF_SPACE;
     }
 
     /* set up the new inode: put name of file on the inode and information bytes */
@@ -945,7 +945,7 @@ int _update_fd_table_index() {
     }
 
     /* if you made it this far, there are no available file descriptors */
-    return ERR_OUT_OF_FD;
+    return ERR_OUT_OF_FDS;
 }
 
 /* Pop and return the next free block, and replace the superblock index

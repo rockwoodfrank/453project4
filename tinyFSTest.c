@@ -129,7 +129,7 @@ void testTfs_mount()
     // tfs_unmount
     assert(tfs_unmount() == 0);
     // making sure that trying to unmount again results in failure
-    assert(tfs_unmount() == ERR_NOTHING_TO_UNMOUNT);
+    assert(tfs_unmount() == ERR_NO_DISK_MOUNTED);
 
     // disks that don't exist
     // TODO: replace with actual error code
