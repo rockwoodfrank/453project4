@@ -35,7 +35,10 @@ Byte    Value
 4-12    File name
 13-16   File size
 17-20   File Offset
-21+ 	Direct Blocks to Data
+21-28 	File Creation Time
+29-36	File Modification Time
+37-42	File Access Time
+43+ 	Direct Blocks to Data
 
 File Extent:
 Byte    Value

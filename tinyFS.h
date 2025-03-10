@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 
 /* use this name for a default emulated disk file name */
 #define DEFAULT_DISK_NAME "tinyFSDisk"
@@ -71,10 +72,25 @@
     /* file inode block byte locations */
     #define FILE_SIZE_LOC       (FILE_NAME_LOC + FILENAME_LENGTH + 1)   // 14
     #define FILE_OFFSET_LOC     (FILE_SIZE_LOC + 4)                     // 18
-    #define FILE_DATA_LOC       (FILE_OFFSET_LOC + 4)                   // 22
 
+
+    /* timestamp macros */
+    #define FILE_CREATEDTIME_LOC    (FILE_OFFSET_LOC + 4)
+    #define FILE_MODIFIEDTIME_LOC   (FILE_CREATEDTIME_LOC + 8)
+    #define FILE_ACCESSTIME_LOC     (FILE_MODIFIEDTIME_LOC + 8)
+
+    #define FILE_DATA_LOC       (FILE_ACCESSTIME_LOC + 8)              
+
+
+
+    /* directory timestamp macros, since you guys decided to make them different :/ */
+    #define DIR_CREATEDTIME_LOC    (FILE_NAME_LOC + FILENAME_LENGTH + 1)
+    #define DIR_MODIFIEDTIME_LOC   (DIR_CREATEDTIME_LOC + 8)
+    #define DIR_ACCESSTIME_LOC     (DIR_MODIFIEDTIME_LOC + 8)
+  
     /* directory inode block byte locations */
-    #define DIR_DATA_LOC        (FILE_NAME_LOC + FILENAME_LENGTH + 1)   // 14
+    #define DIR_DATA_LOC        (DIR_ACCESSTIME_LOC + 8)   // 14
+
 
     /* how many data blocks a file inode can hold */
     #define MAX_FILE_DATA       (BLOCKSIZE - FILE_DATA_LOC)             // 234
@@ -150,5 +166,10 @@ int tfs_readByte(fileDescriptor FD, char *buffer);
 /* change the file pointer location to offset (absolute). Returns
 success/error codes.*/
 int tfs_seek(fileDescriptor FD, int offset);
+
+// Timestamps
+// Implement creation, modification, and access timestamps for each file.
+// tfs_readFileInfo(fileDescriptor FD) returens the file's timestamps
+void tfs_readFileInfo(fileDescriptor FD);
 
 #endif
