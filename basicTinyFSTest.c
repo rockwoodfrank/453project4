@@ -7,7 +7,7 @@
  #include <string.h>
  
  #include "tinyFS.h"
- #include "libTinyFS.h"
+ //#include "libTinyFS.h"
  // NOTE: in the original file this was "TinyFS_errno.h" (note the capital T.)
  #include "tinyFS_errno.h"
  
@@ -129,12 +129,13 @@
  
  /* now bfile tests */
    bFD = tfs_openFile ("bfile");
+
  
    if (bFD < 0)
 	 {
 	   perror ("tfs_openFile failed on bfile");
 	 }
- 
+  
    if (tfs_readByte (bFD, &readBuffer) < 0)
 	 {
 	   if (tfs_writeFile (bFD, bfileContent, bfileSize) < 0)

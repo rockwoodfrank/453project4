@@ -15,9 +15,9 @@ int openDisk(char *filename, int nBytes) {
         return -1;
     }
 
-    /* if nBytes is not evenly divisible by BLOCKSIZE*/
+    /* if nBytes is not evenly divisible by BLOCKSIZE */
     if(nBytes % BLOCKSIZE != 0) {
-        /* change nBytes to the closet multiple of BLOCKSIZE that is less than nBytes*/
+        /* change nBytes to the closet multiple of BLOCKSIZE that is less than nBytes */
         nBytes = (nBytes / BLOCKSIZE) * BLOCKSIZE;
     }
 

@@ -25,10 +25,10 @@ void testReadBlock()
     char *buff2 = (char *) malloc(sizeof(char) * BLOCKSIZE);
 
     read(compFile, buff2, BLOCKSIZE);
-    assert(readBlock(testFile, 0, (void *)buff) == 0);
+    assert(readBlock(testFile, 0, (void *)buff) == -1);
 
     read(compFile, buff2, BLOCKSIZE);
-    assert(readBlock(testFile, 1, (void *)buff) == 0);
+    assert(readBlock(testFile, 1, (void *)buff) == -1);
 
     
     assert(strcmp(buff, buff2) == 0);

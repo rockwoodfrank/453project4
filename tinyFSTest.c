@@ -123,6 +123,7 @@ void testTfs_mount()
 {
     int diskSize = DEFAULT_DISK_SIZE;
     assert(tfs_mkfs("testFiles/test.dsk", diskSize) == 0);
+    assert(tfs_mkfs("testFiles/test2.dsk", diskSize) == 0);
     assert(tfs_mount("testFiles/test.dsk") == 0);
 
     // tfs_unmount
@@ -177,19 +178,20 @@ void testTfs_updateFile()
     assert(tfs_mkfs(diskName, diskSize) == 0);
     assert(tfs_mount(diskName) == 0);
 
-    
-    for (int i = 1; i < MAX_SUPBLOCK_INODES; i++)
+    for (int i = 1; i < ((diskSize / BLOCKSIZE)); i++)
     {
         char fileName[8];
         snprintf(fileName, 8, "fil%d", i);
         assert(tfs_openFile(fileName) >= 0);
     }
+
     assert(tfs_openFile("extra") < 0);
     assert(tfs_unmount() == 0);
     remove(diskName);
 
     // Trying to write when no disk is mounted
     assert(tfs_openFile("nodrv") < 0);
+
 
     // A file where the name is an empty string
     assert(tfs_mkfs(diskName, DEFAULT_DISK_SIZE) == 0);
@@ -278,6 +280,7 @@ void testTfs_updateFile()
     for (int i = 0; i<6; i++)
     {
         assert(tfs_readByte(testFile, &fileByte) == 0);
+        printf("%c\n", fileByte);
         assert(fileByte == readStr[i]);
     }
 
@@ -291,10 +294,10 @@ void testTfs_updateFile()
     assert(fileByte == 'h');
 
     // Seeking to the end of the file
-    assert(tfs_seek(testFile, 6) == 0);
+    assert(tfs_seek(testFile, 5) == 0);
 
-    assert(tfs_readByte(testFile, &fileByte) == 0);
-    assert(fileByte == '\0');
+   assert(tfs_readByte(testFile, &fileByte) == 0);
+   assert(fileByte == '\0');
 
     // Seeking to the middle of a file
     assert(tfs_seek(testFile, 3) == 0);

@@ -83,6 +83,7 @@ int tfs_mount(char* diskname) {
         return -1;
     }
 
+
     /* Returning an error if the file isn't formatted properly */
     /* Done by making sure byte 1 of the superblock is 0x44 */
     // SYDNOTE: do we need to check the 0x44 and block type for each block in the disk file?
@@ -114,10 +115,11 @@ int tfs_mount(char* diskname) {
 }
 
 int tfs_unmount() {
+
     if (mounted == NULL) {
         return -1;
     }
-        
+
     /* Free the mounted variable and change it to a null pointer */
     int returnVal = closeDisk(mounted->diskNum);
 
@@ -131,6 +133,11 @@ int tfs_unmount() {
 }
 
 fileDescriptor tfs_openFile(char *name) {
+
+    if (mounted == NULL) {
+        return -1;
+    }
+
     if(name == NULL) {
         return -1;
     }
@@ -141,6 +148,10 @@ fileDescriptor tfs_openFile(char *name) {
     
     /* make sure the last directory in the path does not already exist */
     int dir_found_flag = _navigate_to_dir(name, cur_path, &parent, NULL, FILE_TYPE_FILE);
+
+    if(dir_found_flag < 0) {
+        return dir_found_flag;
+    }
 
     if (dir_found_flag) {
         /* file already exists */
@@ -203,6 +214,7 @@ fileDescriptor tfs_openFile(char *name) {
 }
 
 int tfs_closeFile(fileDescriptor FD) {
+
     /* if there is an entry, remove entry */
     if(fd_table[FD]) {
         fd_table[FD] = EMPTY_TABLEVAL;
@@ -218,19 +230,28 @@ file’s content, to the file system. Previous content (if any) will be
 completely lost. Sets the file pointer to 0 (the start of file) when
 done. Returns success/error codes. */
 int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
+
+    if(!fd_table[FD]) {
+        return -1;
+    }
+
+    if (mounted == NULL) {
+        return -1;
+    }
     // Grab the block's inode
     uint8_t inode[BLOCKSIZE]; 
     readBlock(mounted->diskNum, fd_table[FD], inode);
 
     /* store the file size in the inode */
-    inode[13] = (size >> 3) & 0xFF;
-    inode[14] = (size >> 2) & 0xFF;
-    inode[15] = (size >> 1) & 0xFF;
-    inode[16] = size & 0xFF;
+    int i = FILE_SIZE_LOC;
+    inode[i] = (size >> 24) & 0xFF;
+    inode[i + 1] = (size >> 16) & 0xFF;
+    inode[i + 2] = (size >> 8) & 0xFF;
+    inode[i + 3] = size & 0xFF;
 
     // Resetting the direct blocks so the data is "lost" since nothing is pointing to them
     // Counter for clearing
-    int i = 0;
+    i = 0;
     uint8_t dir_block = inode[FILE_DATA_LOC + i++];
     while(dir_block != 0x0) {
         // Allocating each block as "free" and adding them to the linked list
@@ -246,9 +267,9 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     // Writing those blocks to the file
     uint8_t temp_addr;
     uint8_t temp_block[BLOCKSIZE];
-    // A value to keep track of where we are in the buffer
-    int bufferHead = 0;
     for (int i = 0; i < numBlocks; i++) {
+        // A value to keep track of where we are in the buffer
+        int bufferHead = 0;
         // A variable to keep track of how many bytes should be written so that bytes outside the buffer aren't included
         int writeSize = size - (i * MAX_DATA_SPACE);
         temp_addr = _pop_free_block();
@@ -259,8 +280,11 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
             //temp_block[2] = inode; TODO: if we want to link up parents, not sure right now
 
             // Copy the buffer data over to the block
-            // TODO: Change i's value into a macro? // SYDNOTE: could be same as one used for FILENAMELOC (rename if use the same for both)
-            for (int j = 4; j < writeSize + 4; j++) {
+            // TODO: Change i's value into a macro? 
+            if(writeSize > MAX_DATA_SPACE) {
+                writeSize = MAX_DATA_SPACE;
+            }
+            for (int j = FIRST_DATA_LOC; j < writeSize + FIRST_DATA_LOC; j++) {
                 temp_block[j] = buffer[bufferHead++];
             }
             writeBlock(mounted->diskNum, temp_addr, temp_block);
@@ -277,10 +301,18 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
 }
 
 int tfs_deleteFile(fileDescriptor FD) {
-    // close the file if it hasn't been done already - error check this
-    tfs_closeFile(FD);
-    // Grab the block's inode
+
+    if(!fd_table[FD]) {
+        return -1;
+    }
+
+    if (mounted == NULL) {
+        return -1;
+    }
+
+    /* Grab the block's inode */
     uint8_t inode[BLOCKSIZE]; 
+    printf("FD TABLE %d\n", fd_table[FD]);
     readBlock(mounted->diskNum, fd_table[FD], inode);
 
     // Resetting the direct blocks so the data is "lost" since nothing is pointing to them
@@ -293,28 +325,56 @@ int tfs_deleteFile(fileDescriptor FD) {
         dir_block = inode[FILE_DATA_LOC + i++];
     }
 
-    // Finally, freeing the inode
+    /* Finally, freeing the inode */
     _free_block(fd_table[FD]);
+
+    /* close the file in the fd table and if there are 
+       multiple FDs for the file, close those too */
+    int node = fd_table[FD];
+    for(int i = 0; i < FD_TABLESIZE; i++) {
+        if(fd_table[i] == node) {
+            tfs_closeFile(i);
+        }
+    }
+
     // TODO: error checking?
     return 0;
 }
 
 int tfs_readByte(fileDescriptor FD, char* buffer) {
+
+    if(!fd_table[FD]) {
+        return -1;
+    }
+
+    if (mounted == NULL) {
+        return -1;
+    }
+
     // Grab the block's inode
     uint8_t inode[BLOCKSIZE]; 
     readBlock(mounted->diskNum, fd_table[FD], inode);
 
     // get file offset from inode block and convert to block & block offset
     int i = FILE_OFFSET_LOC;
-    int offset = (inode[i] << 3) + (inode[i + 1] << 2) + (inode[i + 2] << 1) + inode[i + 3];
+    int offset = (inode[i] << 24) + (inode[i + 1] << 16) + (inode[i + 2] << 8) + inode[i + 3];
     int block_num = offset / BLOCKSIZE;
     int block_offset = offset % BLOCKSIZE;
 
-    // increment the offset and make sure it is in the file
-    int seek_status = tfs_seek(FD, offset++);
-    if (seek_status < 0) {
-        return seek_status;
+    i = FILE_SIZE_LOC;
+    int size = (inode[i] << 24) + (inode[i + 1] << 16) + (inode[i + 2] << 8) + inode[i + 3];
+
+    if(offset > size) {
+        return -1;
     }
+
+    /* increment the offset and make sure it is in the file */
+    int seek_status = tfs_seek(FD, ++offset);
+    if (seek_status < 0) {
+       return seek_status;
+    }
+
+
 
     // Grab the data block
     uint8_t data_block_num = inode[FILE_DATA_LOC + block_num];
@@ -329,25 +389,38 @@ int tfs_readByte(fileDescriptor FD, char* buffer) {
 }
 
 int tfs_seek(fileDescriptor FD, int offset) {
+
+    if(!fd_table[FD]) {
+        return -1;
+    }
+
+    if (mounted == NULL) {
+        return -1;
+    }
+
     // Grab the inode
     uint8_t inode[BLOCKSIZE]; 
     readBlock(mounted->diskNum, fd_table[FD], inode);
 
     // get file size
     int i = FILE_SIZE_LOC;
-    int size = (inode[i] << 3) + (inode[i + 1] << 2) + (inode[i + 2] << 1) + inode[i + 3];
+    int size = (inode[i] << 24) + (inode[i + 1] << 16) + (inode[i + 2] << 8) + inode[i + 3];
 
     // make sure the offset is in the file
-    if (offset >= size || offset < 0) {
+    if (offset > size || offset < 0) {
         return -1;
     } 
 
     // store the offset in the file inode
     i = FILE_OFFSET_LOC;
-    inode[i] = (offset >> 3) & 0xFF;
-    inode[i + 1] = (offset >> 2) & 0xFF;
-    inode[i + 2] = (offset >> 1) & 0xFF;
+    inode[i] = (offset >> 24) & 0xFF;
+    inode[i + 1] = (offset >> 16) & 0xFF;
+    inode[i + 2] = (offset >> 8) & 0xFF;
     inode[i + 3] = offset & 0xFF;
+
+    if(writeBlock(mounted->diskNum, fd_table[FD], inode) < 0) {
+        return -1;
+    }
 
     return 0;
 }
@@ -435,6 +508,11 @@ int _navigate_to_dir(char* dirName, char* last_path_h, int* current_h, int* pare
 
 /* creates a directory, name could contain a “/”-delimited path) */
 int tfs_createDir(char* dirName) {
+
+    if (mounted == NULL) {
+        return -1;
+    }
+
     /* make sure the given dirName is not null */
     if (dirName == NULL) {
         return -1;  // ERR: invalid input error
@@ -445,6 +523,11 @@ int tfs_createDir(char* dirName) {
     
     /* make sure the last directory in the path does not already exist */
     int dir_found_flag = _navigate_to_dir(dirName, cur_path, &parent, NULL, FILE_TYPE_DIR);
+
+    if(dir_found_flag < 0) {
+        return dir_found_flag;
+    }
+
     if (dir_found_flag) {
         // dir already exists 
         return -1;
@@ -498,6 +581,11 @@ int tfs_createDir(char* dirName) {
 
 /* deletes empty directory */
 int tfs_removeDir(char* dirName) {
+
+    if (mounted == NULL) {
+        return -1;
+    }
+
     /* make sure the given dirName is not null */
     if (dirName == NULL) {
         return -1;  // ERR: invalid input error
@@ -509,6 +597,11 @@ int tfs_removeDir(char* dirName) {
     
     /* make sure the last directory in the path does already exist */
     int dir_found_flag = _navigate_to_dir(dirName, cur_path, &current, &parent, FILE_TYPE_DIR);
+
+    if(dir_found_flag < 0) {
+        return dir_found_flag;
+    }
+
     if (!dir_found_flag) {
         // trying to remove a directory that does not exist
         return -1; // ERR: not a directory, directory not found
@@ -548,6 +641,11 @@ int tfs_removeDir(char* dirName) {
 /* recursively remove dirName and any file and directories under it. 
 Special “/” token may be used to indicate root dir. */
 int tfs_removeAll(char* dirName) {
+
+    if (mounted == NULL) {
+        return -1;
+    }
+
     /* make sure the given dirName is not null */
     if (dirName == NULL) {
         return -1;  // ERR: invalid input error
@@ -561,6 +659,11 @@ int tfs_removeAll(char* dirName) {
     /* skip if given dirName "/" */
     if (strcmp(dirName, "/") != 0) {
         int dir_found_flag = _navigate_to_dir(dirName, cur_path, &current, &parent, FILE_TYPE_DIR);
+
+        if(dir_found_flag < 0) {
+            return dir_found_flag;
+        }
+
         if (!dir_found_flag) {
             // trying to remove a directory that does not exist
             return -1; // ERR: not a directory, directory not found
@@ -627,6 +730,15 @@ int tfs_removeAll(char* dirName) {
 
 /* renames a file. New name should be passed in. File has to be open. */
 int tfs_rename(fileDescriptor FD, char* newName) {
+
+    if(!fd_table[FD]) {
+        return -1;
+    }
+
+    if (mounted == NULL) {
+        return -1;
+    }
+
     /* make sure the given inputs are valid */
     if (newName == NULL || FD <= 0 || strlen(newName) > 8) {
         return -1; // ERR: invalid input
@@ -660,6 +772,10 @@ int tfs_rename(fileDescriptor FD, char* newName) {
 /* lists all the files and directories on the disk, print the list to stdout */
 int tfs_readdir() {
 
+    if (mounted == NULL) {
+        return -1;
+    }
+
     uint8_t superblock[BLOCKSIZE];
     if(readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock) < 0) {
         return -1;
@@ -689,8 +805,16 @@ int tfs_readdir() {
 /* (E) timestamps */
 /* returns the file’s creation time or all info */
 int tfs_readFileInfo(fileDescriptor FD) {
+
+    if(!fd_table[FD]) {
+        return -1;
+    }
+
+    if (mounted == NULL) {
+        return -1;
+    }
     return 0;
-}
+} 
 
 /* ~ HELPER FUNCTIONS ~ */
 // SYDNOTE: make sure we are error handling the helper functions when using them
@@ -704,6 +828,10 @@ int tfs_readFileInfo(fileDescriptor FD) {
         - error if the next path name is more than the max filename length
         - error if the path name has un-readable characters */
 int _parse_path(char* path, int index, char* buffer) {
+
+    if(path[index] == '\0') {
+        return -1;
+    }
     /* stop at '\0' or '/' or until up to the allowed filename length */
     int i = 0;
     while (path[index] != '\0' && path[index] != '/' && i < FILENAME_LENGTH) {
@@ -815,7 +943,6 @@ int _print_directory_contents(int block, int tabs) {
             if(inode[FILE_TYPE_FLAG_LOC] == FILE_TYPE_DIR) {
                 printf("%s\n", (inode + FILE_NAME_LOC));
                 _print_directory_contents(directory_inode[i + DIR_DATA_LOC], tabs+1);
-                // printf("Function called\n");
             } else {
                 printf("%s\n", (inode + FILE_NAME_LOC));
             }
@@ -826,11 +953,11 @@ int _print_directory_contents(int block, int tabs) {
     return 0;
 }
 
-// // /* Uncomment and run this block if you want to test */
-int main(int argc, char* argv[]) {
-    if(argc > 1) {
-        tfs_mkfs("SydneysDisk.dsk", 8192);    
-    }
+/* Uncomment and run this block if you want to test */
+// int main(int argc, char* argv[]) {
+//     if(argc > 1) {
+//         tfs_mkfs("SydneysDisk.dsk", 8192);    
+//     }
 
 //     if(tfs_mount("SydneysDisk.dsk") < 0) {
 //         printf("Failed to mount Sydney's disk\n");
@@ -846,79 +973,27 @@ int main(int argc, char* argv[]) {
 
 //     printf("%d\n", tfs_createDir("testDir/quincys/anisdir/ARAV"));
 
-//     printf("%d\n", tfs_removeDir("testDir/quincys/anisdir/ARAV"));
+//     printf("%d\n", tfs_createDir("testDir/mars"));
 
-//     printf("%d\n", tfs_removeAll("testDir/quincys"));
+//     printf("%d\n", tfs_openFile("testDir/quincys/whee"));
+
+//     printf("%d\n", tfs_openFile("testDir/quincys/whoo"));
+
+//     printf("%d\n", tfs_openFile("testDir/quincys/anisdir/HAHA"));
+
+//     printf("%d\n", tfs_openFile("testDir/quincys/anisdir/ARAV/fuck"));
+
+//     printf("%d\n", tfs_openFile("testDir/quincys/anisdir/ARAV/shit"));
+
+//     printf("%d\n", tfs_openFile("testDir/quincys/anisdir/ARAV/piss"));
 
 
-//     //printf("AAA\n");
+//     tfs_readdir();
 
-//     /* Existing files */
+// //     printf("%d\n", tfs_removeDir("testDir/quincys/anisdir/ARAV"));
 
-//     // char filetest5[] = "anisf";
-//     // int fd = tfs_openFile(filetest5);
-//     // printf("File anisf has been opened with fd %d\n", fd);
-//     // printf("The inode of the file is %d\n\n", fd_table[fd]);
+// //     printf("%d\n", tfs_removeAll("testDir/quincys"));
 
-//     // char filetest6[] = "boo";
-//     // fd = tfs_openFile(filetest6);
-//     // printf("File boo has been opened with fd %d\n", fd);
-//     // printf("The inode of the file is %d\n\n", fd_table[fd]);
-
-//     // char filetest7[] = "testDir/quincys/whoo";
-//     // fd = tfs_openFile(filetest7);
-//     // printf("File whoo has been opened with fd %d\n", fd);
-//     // printf("The inode of the file is %d\n\n", fd_table[fd]);
-
-//     // char buffer[100];
-//     // tfs_readByte(fd, buffer);
-
-//     // fd = tfs_openFile("test2");
-//     // printf("File test2 has been opened with fd %d\n", fd);
-//     // printf("The inode of the file is %d\n\n", fd_table[fd]);
-
-//     // char filetest6[] = "boo";
-//     // fd = tfs_openFile(filetest6);
-//     // printf("File boo has been opened with fd %d\n", fd);
-//     // printf("The inode of the file is %d\n\n", fd_table[fd]);
-
-// //     char filetest7[] = "testDir/quincys/whoo";
-// //     fd = tfs_openFile(filetest7);
-// //     printf("File whoo has been opened with fd %d\n", fd);
-// //     printf("The inode of the file is %d\n\n", fd_table[fd]);
-
-// //     // char buffer[100];
-// //     // tfs_readByte(fd, buffer);
-
-// //     // fd = tfs_openFile("test2");
-// //     // printf("File test2 has been opened with fd %d\n", fd);
-// //     // printf("The inode of the file is %d\n\n", fd_table[fd]);
-
-// //     // fd = tfs_openFile("test3");
-// //     // printf("File test3 has been opened with fd %d\n", fd);
-// //     // printf("The inode of the file is %d\n\n", fd_table[fd]);
-
-// //     // /* Make this file */
-// //     // fd = tfs_openFile("test4");
-// //     // printf("File test4 has been opened with fd %d\n", fd);
-// //     // printf("The inode of the file is %d\n\n", fd_table[fd]);
-
-// //     // if(tfs_closeFile(fd) < 0) {
-// //     //     printf("Closing file failed\n");
-// //     //     return -1;
-// //     // }
-
-// //     // fd = tfs_openFile("test5");
-// //     // printf("File test5 has been opened with fd %d\n", fd);
-// //     // printf("The inode of the file is %d\n\n", fd_table[fd]);
-
-// //     // fd = tfs_openFile("test6");
-// //     // printf("File test6 has been opened with fd %d\n", fd);
-// //     // printf("The inode of the file is %d\n\n", fd_table[fd]);
-
-// //     // fd = tfs_openFile("testDir/cow");
-// //     // printf("File test6 has been opened with fd %d\n", fd);
-// //     // printf("The inode of the file is %d\n\n", fd_table[fd]);
 
 //     return 0;
 // }

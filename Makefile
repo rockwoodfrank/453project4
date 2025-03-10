@@ -13,6 +13,7 @@ clean:
 	rm -f $(OBJS) *~ TAGS
 	rm -rf $(TESTPROGS)
 	rm -rf $(DISKOBJS)
+	rm -rf testFiles/*.dsk
 
 declutter: 
 	rm -f $(OBJS) *~ TAGS

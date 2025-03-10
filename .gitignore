@@ -9,3 +9,6 @@ basicTinyFSTest
 runBasicTinyFSTest 
 tinyFSTest
 testSydneyDisk
+basicDisk
+basicFS
+tinyFSDisk
