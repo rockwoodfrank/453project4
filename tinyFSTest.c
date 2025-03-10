@@ -165,7 +165,7 @@ void testTfs_updateFile()
     assert(inode[SAFETY_BYTE_LOC] == 0x44);
     assert(inode[EMPTY_BYTE_LOC] == 0x00);
     assert(inode[FILE_TYPE_FLAG_LOC] == FILE_TYPE_FILE);
-    //assert(strcmp(&(inode[FILE_NAME_LOC]), "test") == 0);
+    assert(strcmp(&(inode[FILE_NAME_LOC]), "test") == 0);
     int fileSize = ((int *)inode)[FILE_SIZE_LOC];
     assert(fileSize == 0);
 
@@ -182,20 +182,20 @@ void testTfs_updateFile()
     {
         char fileName[8];
         snprintf(fileName, 8, "fil%d", i);
-        //assert(tfs_openFile(fileName) >= 0);
+        assert(tfs_openFile(fileName) >= 0);
     }
-    //assert(tfs_openFile("extra") < 0);
+    assert(tfs_openFile("extra") < 0);
     assert(tfs_unmount() == 0);
     remove(diskName);
 
     // Trying to write when no disk is mounted
-    //assert(tfs_openFile("nodrv") < 0);
+    assert(tfs_openFile("nodrv") < 0);
 
     // A file where the name is an empty string
     assert(tfs_mkfs(diskName, DEFAULT_DISK_SIZE) == 0);
     assert(tfs_mount(diskName) == 0);
 
-    //assert(tfs_openFile("") < 0);
+    assert(tfs_openFile("") < 0);
 
     // Opening the same file twice
     int dupFileNum = tfs_openFile("abc");
@@ -264,16 +264,6 @@ void testTfs_updateFile()
         //     assert(wFileData2[i + FIRST_DATA_LOC] == bigString[i]);
     }
 
-    // Writing an integer to a file
-
-    // Writing to various files sequentially
-
-    // Writing to a file that doesn't exist
-
-    // Writing a file that's too big for the disk
-
-    // Writing a bunch of files, deleting some, writing some more
-
     assert(tfs_unmount() == 0);
     remove(diskName);
 
@@ -291,37 +281,133 @@ void testTfs_updateFile()
         assert(fileByte == readStr[i]);
     }
 
-    // Reading a lot of bytes from a file
-
     // Reading a byte out of range
+    assert(tfs_readByte(testFile, &fileByte) != 0);
 
     // Seeking to the beginning of a file
+    assert(tfs_seek(testFile, 0) == 0);
+
+    assert(tfs_readByte(testFile, &fileByte) == 0);
+    assert(fileByte == 'h');
 
     // Seeking to the end of the file
+    assert(tfs_seek(testFile, 6) == 0);
+
+    assert(tfs_readByte(testFile, &fileByte) == 0);
+    assert(fileByte == '\0');
 
     // Seeking to the middle of a file
+    assert(tfs_seek(testFile, 3) == 0);
+
+    assert(tfs_readByte(testFile, &fileByte) == 0);
+    assert(fileByte == 'l');
 
     // Seeking in different files
+    fileDescriptor otherFile = tfs_openFile("another");
+    char seek_newString[23] = "this is another string";
+    assert(tfs_writeFile(otherFile, seek_newString, 23) == 0);
+    assert(tfs_seek(otherFile, 3) == 0);
+    assert(tfs_seek(testFile, 2) == 0);
+    assert(tfs_readByte(otherFile, &fileByte) == 0);
+    assert(fileByte == 's');
+    assert(tfs_readByte(testFile, &fileByte) == 0);
+    assert(fileByte == 'l');
 
     // Seeking out of range of the file
+    assert(tfs_seek(otherFile, 52) != 0);
 
     // Deleting a file
+    assert(tfs_deleteFile(testFile) == 0);
+    assert(tfs_readByte(testFile, &fileByte) != 0);
+
+    // TODO: Verify the disk blocks have been deleted too
+
 
     // Trying to delete the same file twice
+    assert(tfs_deleteFile(testFile) != 0);
 
     // Deleting all of the files on the disk
 
     // Deleting a file that doesn't exist
 
     // Writing to a deleted file
+    assert(tfs_writeFile(testFile, "test", 5) != 0);
 
     //Closing the file
+    assert(tfs_closeFile(otherFile) == 0);
+
+    assert(tfs_closeFile(testFile) != 0);
+
+    // Opening a file, writing something, closing it, opening and reading it
+    fileDescriptor runFile = tfs_openFile("newfile");
+    char variableToWrite[49] = "a test string full of data to write to the disk.";
+    assert(tfs_writeFile(runFile, variableToWrite, 49) == 0);
+    tfs_closeFile(runFile);
+
+    fileDescriptor runFile2 = tfs_openFile("newfile");
+
+    for (int i = 0; i < 49; i++)
+    {
+        assert(tfs_readByte(runFile2, &fileByte) == 0);
+        assert(fileByte == variableToWrite[i]);
+    }
+
+    assert(tfs_unmount() == 0);
+    remove(diskName);
+    // Writing an integer to a file
+    assert(tfs_mkfs(diskName, DEFAULT_DISK_SIZE) == 0);
+    assert(tfs_mount(diskName) == 0);
+    int intFile = tfs_openFile("testFile");
+    assert(intFile >= 0);
+    int test_number = 28493;
+    int result_number = 0;
+    assert(tfs_writeFile(intFile, (char *)&test_number, sizeof(int) / sizeof(char)) == 0);
+    assert(tfs_readByte(intFile, &fileByte) == 0);
+    result_number = fileByte;
+    assert(tfs_readByte(intFile, &fileByte) == 0);
+    result_number += (fileByte << 8);
+    assert(test_number == result_number);
+
+    // Writing to various files sequentially
+    fileDescriptor fileNums[4];
+    fileNums[0] = tfs_openFile("fileA");
+    fileNums[1] = tfs_openFile("fileB");
+    fileNums[2] = tfs_openFile("fileC");
+    fileNums[3] = tfs_openFile("fileD");
+    assert(tfs_writeFile(fileNums[0], "a", 2) == 0);
+    assert(tfs_writeFile(fileNums[1], "b", 2) == 0);
+    assert(tfs_writeFile(fileNums[2], "c", 2) == 0);
+    assert(tfs_writeFile(fileNums[3], "d", 2) == 0);
+
+    assert(tfs_readByte(fileNums[0], &fileByte) == 0);
+    assert(fileByte == 'a');
+
+    assert(tfs_readByte(fileNums[1], &fileByte) == 0);
+    assert(fileByte == 'b');
+
+    assert(tfs_readByte(fileNums[2], &fileByte) == 0);
+    assert(fileByte == 'c');
+
+    assert(tfs_readByte(fileNums[3], &fileByte) == 0);
+    assert(fileByte == 'd');
+
+    // Writing to a file that doesn't exist
+    assert(tfs_writeFile(34, "this won't exist", 17) != 0);
+
+    // Opening a file twice, then writing to one filedescriptor and making sure the other one is consistent
+    fileDescriptor oneFD = tfs_openFile("fileE");
+    fileDescriptor anotherFD = tfs_openFile("fileE");
+
+    assert(tfs_writeFile(oneFD, "g", 2) == 0);
+    assert(tfs_readByte(anotherFD, &fileByte) == 0);
+    assert(fileByte == 'g');
     
     // Trying to close a file twice
+    assert(tfs_closeFile(fileNums[0]) == 0);
+    assert(tfs_closeFile(fileNums[0]) != 0);
 
     // Closing a file that never existed
-
-    // Mounting and unmounting and making sure the data is still there
+    assert(tfs_closeFile(34) != 0);
 
 }
 
