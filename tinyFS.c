@@ -262,14 +262,14 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     // Determining the amount of blocks to be written. A plus one at the end for data outside the 256 byte margin.
     // NOTE TO PROGRAMMER: I set this to size-1 so write of 256 bytes(or any number on the line)
     // will not take up extra blocks. Might cause problems in the future.
-    //unSYDNOTE: can only do that if the last byte is a /0 ..?
+    // unSYDNOTE: can only do that if the last byte is a /0 ..?
     int numBlocks = ((size-1) / MAX_DATA_SPACE) + 1;
     // Writing those blocks to the file
     uint8_t temp_addr;
     uint8_t temp_block[BLOCKSIZE];
+    int bufferHead = 0;
     for (int i = 0; i < numBlocks; i++) {
         // A value to keep track of where we are in the buffer
-        int bufferHead = 0;
         // A variable to keep track of how many bytes should be written so that bytes outside the buffer aren't included
         int writeSize = size - (i * MAX_DATA_SPACE);
         temp_addr = _pop_free_block();
@@ -290,9 +290,8 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
             writeBlock(mounted->diskNum, temp_addr, temp_block);
             inode[FILE_DATA_LOC + i] = temp_addr;
         }
-        // TODO: Error checking(probably a full disk)
+        writeBlock(mounted->diskNum, fd_table[FD], inode);
     }
-    writeBlock(mounted->diskNum, fd_table[FD], inode);
 
     /* set the file offset to be 0 */
     tfs_seek(FD, 0); 
@@ -358,8 +357,8 @@ int tfs_readByte(fileDescriptor FD, char* buffer) {
     // get file offset from inode block and convert to block & block offset
     int i = FILE_OFFSET_LOC;
     int offset = (inode[i] << 24) + (inode[i + 1] << 16) + (inode[i + 2] << 8) + inode[i + 3];
-    int block_num = offset / BLOCKSIZE;
-    int block_offset = offset % BLOCKSIZE;
+    int block_num = offset / MAX_DATA_SPACE;
+    int block_offset = offset % MAX_DATA_SPACE;
 
     i = FILE_SIZE_LOC;
     int size = (inode[i] << 24) + (inode[i + 1] << 16) + (inode[i + 2] << 8) + inode[i + 3];
@@ -964,31 +963,38 @@ int _print_directory_contents(int block, int tabs) {
 //         return -1;
 //     }
 
-
 //     printf("%d\n", tfs_createDir("testDir"));
 
-//     printf("%d\n", tfs_createDir("testDir/quincys"));
-
-//     printf("%d\n", tfs_createDir("testDir/quincys/anisdir"));
-
-//     printf("%d\n", tfs_createDir("testDir/quincys/anisdir/ARAV"));
-
-//     printf("%d\n", tfs_createDir("testDir/mars"));
-
-//     printf("%d\n", tfs_openFile("testDir/quincys/whee"));
-
-//     printf("%d\n", tfs_openFile("testDir/quincys/whoo"));
-
-//     printf("%d\n", tfs_openFile("testDir/quincys/anisdir/HAHA"));
-
-//     printf("%d\n", tfs_openFile("testDir/quincys/anisdir/ARAV/fuck"));
-
-//     printf("%d\n", tfs_openFile("testDir/quincys/anisdir/ARAV/shit"));
-
-//     printf("%d\n", tfs_openFile("testDir/quincys/anisdir/ARAV/piss"));
+//     int fd = tfs_openFile("testDir/FOO");
+//     printf("%d\n", fd);
 
 
-//     tfs_readdir();
+//     #define REPEAT 20
+//     #define PATTERN "abcdefghijklmno "
+//     #define PATTERN_LEN (sizeof(PATTERN) - 1) // Exclude null terminator
+    
+//     char buffer[REPEAT * PATTERN_LEN + 1]; // +1 for null terminator
+//     for (int i = 0; i < REPEAT; i++) {
+//         memcpy(buffer + i * PATTERN_LEN, PATTERN, PATTERN_LEN);
+//     }
+//     buffer[REPEAT * PATTERN_LEN] = '\0'; // Null terminate the string
+
+//    printf("%s\n", buffer); // Print result
+
+//    tfs_writeFile(fd, buffer, REPEAT * PATTERN_LEN + 1);
+
+//    printf("\n\n\n");
+
+//    char byte;
+//    while(tfs_readByte(fd, &byte) >= 0) {
+//     printf("%c", byte);
+//    }
+
+//    printf("\n");
+
+
+
+//     // tfs_readdir();
 
 // //     printf("%d\n", tfs_removeDir("testDir/quincys/anisdir/ARAV"));
 

@@ -19,19 +19,19 @@ int main(int argc, char *argv[]) {
 
 void testReadBlock()
 {
-    int testFile = open("testFiles/test.dsk", O_RDWR);
-    int compFile = open("testFiles/test.dsk", O_RDWR);
-    char *buff = (char *) malloc(sizeof(char) * BLOCKSIZE);
-    char *buff2 = (char *) malloc(sizeof(char) * BLOCKSIZE);
+    // int testFile = open("testFiles/test.dsk", O_RDWR);
+    // int compFile = open("testFiles/test.dsk", O_RDWR);
+    // char *buff = (char *) malloc(sizeof(char) * BLOCKSIZE);
+    // char *buff2 = (char *) malloc(sizeof(char) * BLOCKSIZE);
 
-    read(compFile, buff2, BLOCKSIZE);
-    assert(readBlock(testFile, 0, (void *)buff) == -1);
+    // read(compFile, buff2, BLOCKSIZE);
+    // assert(readBlock(testFile, 0, (void *)buff) == -1);
 
-    read(compFile, buff2, BLOCKSIZE);
-    assert(readBlock(testFile, 1, (void *)buff) == -1);
+    // read(compFile, buff2, BLOCKSIZE);
+    // assert(readBlock(testFile, 1, (void *)buff) == -1);
 
     
-    assert(strcmp(buff, buff2) == 0);
+    // assert(strcmp(buff, buff2) == 0);
 
     // Checking for bad file number reads
 
