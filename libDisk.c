@@ -1,6 +1,11 @@
 #include "libDisk.h"
 
 int openDisk(char *filename, int nBytes) {
+    /* make sure filename is valid */
+    if (filename == NULL) {
+        return ERR_INVALID_INPUT;
+    }
+
     /* check if the file exists */
     bool file_exists = access(filename, F_OK) == 0 ? true : false;
 

@@ -15,12 +15,12 @@
 
 // LIBDISK ERR MACROS
 #define ERR_DISK_FILE_NOT_FOUND		-10		// the given disk file does not exist and cannot be created
-#define ERR_INVALID_DISK_FD			-11
+#define ERR_INVALID_DISK_FD			-11		// calling libdisk function for an invalid disk fd
 
 // DISK ERR MACROS
-#define ERR_NO_DISK_MOUNTED			-20		// calling tfs function with no disk mounted
-#define ERR_DISK_OUT_OF_SPACE		-21		// out of free blocks on the disk
-#define ERR_BAD_DISK				-22		// can't mount a improperly set up disk
+#define ERR_BAD_DISK				-20		// can't mount a improperly set up disk
+#define ERR_NO_DISK_MOUNTED			-21		// calling tfs function with no disk mounted
+#define ERR_DISK_OUT_OF_SPACE		-22		// out of free blocks on the disk
 
 // FILE ERR MACROS
 #define ERR_INVALID_FD				-30		// calling tfs function for an invalid fd

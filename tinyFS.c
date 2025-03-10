@@ -21,7 +21,7 @@ int     _navigate_to_dir(char* dirName, char* last_path_h, int* current_h, int* 
 int     _print_directory_contents(int block, int tabs);
 
 /* error status holder */
-int ERR;
+int ERR = 0;
 
 int tfs_mkfs(char *filename, int nBytes) {
     /* error if given 0 bytes */
@@ -66,11 +66,11 @@ int tfs_mkfs(char *filename, int nBytes) {
         }
     }
 
-    /* Initialize superblock */
+    /* Initialize superblock and update it in the disk*/
     memset(buffer, 0, BLOCKSIZE);
     buffer[BLOCK_TYPE_LOC] = SUPERBLOCK;
     buffer[SAFETY_BYTE_LOC] = SAFETY_HEX;
-    buffer[FREE_PTR_LOC] = 0x01;
+    buffer[FREE_PTR_LOC] = number_of_blocks > 1 ? 0x01 : 0;
 
     if ((ERR = writeBlock(disk_descriptor, SUPERBLOCK_DISKLOC, buffer)) < 0) {
         return ERR;
@@ -79,7 +79,63 @@ int tfs_mkfs(char *filename, int nBytes) {
     return TFS_SUCCESS;
 }
 
+int _check_data_block_consistency(int diskNum, int block, int, block_type) {
+    if ((ERR = readBlock(diskNum, i, buffer)) < 0) {
+        return ERR;
+    }
+
+    uint8_t byte0 = buffer[BLOCK_TYPE_LOC];
+    uint8_t byte1 = buffer[SAFETY_BYTE_LOC];
+    uint8_t byte2 = buffer[FREE_PTR_LOC];
+    uint8_t byte3 = buffer[EMPTY_BYTE_LOC];
+
+    if (block_type == INODE) {
+        /* check the first four bytes */
+        if (byte0 != INODE || byte1 != SAFETY_HEX || byte2 != EMPTY_TABLEVAL || byte3 != EMPTY_TABLEVAL) {
+            return ERR_BAD_DISK;
+        }
+
+        /* check that the file type flag is valid */
+        if (buffer[FILE_TYPE_FLAG_LOC] != FILE_TYPE_DIR || buffer[FILE_TYPE_FLAG_LOC] != FILE_TYPE_FLAG) {
+            return ERR_BAD_DISK;
+        }
+
+        /* check that the name is valid */
+        char* filename = buffer[FILE_NAME_LOC];
+        if (buffer[FILE_NAME_LOC + FILENAME_LENGTH] != 0 || strlen(filename) <= 0) {
+            return ERR_BAD_DISK;
+        }
+    }
+
+    if (block_type == FILEEX) {
+        /* check the first four bytes */
+        if (byte0 != FILEEX || byte1 != SAFETY_HEX || byte2 != EMPTY_TABLEVAL || byte3 != EMPTY_TABLEVAL) {
+            return ERR_BAD_DISK;
+        }
+    }
+
+    if (block_type == FREE) {
+        /* check the first four bytes */
+        if (byte0 != FREE || byte1 != SAFETY_HEX || byte2 != EMPTY_TABLEVAL || byte3 != EMPTY_TABLEVAL) {
+            return ERR_BAD_DISK;
+        }
+
+        /* make sure all remaining bytes are blank */
+        for (int i = 0; i < MAX_DATA_SPACE; i++) {
+            if (buffer[i + FILE_DATA_LOC] != 0) {
+                return ERR_BAD_DISK;
+            }
+        }
+    }
+    
+    return TFS_SUCCESS;
+}
+
 int tfs_mount(char* diskname) {
+    /* make sure diskname is valid */
+    if (diskname == NULL) {
+        return ERR_INVALID_INPUT;
+    }
     /* open the given disk */
     int diskNum = openDisk(diskname, 0);
     if (diskNum < 0) {
@@ -91,7 +147,24 @@ int tfs_mount(char* diskname) {
     // SYDNOTE: do we need to check the 0x44 and block type for each block in the disk file?
     // + make sure the disk file is perfectly divisible by blocksize ..? or nah
     uint8_t buffer[BLOCKSIZE];
-    readBlock(diskNum, SUPERBLOCK_DISKLOC, buffer);
+    int i = 0;
+    while (readBlock(diskNum, i, buffer) != SYS_ERR_READ) {
+
+        uint8_t byte0 = buffer[BLOCK_TYPE_LOC];
+        uint8_t byte1 = buffer[SAFETY_BYTE_LOC];
+        uint8_t byte2 = buffer[FREE_PTR_LOC];
+
+        /* check the superblock */
+        if (i == 0) {
+            uint8_t byte0 = buffer[BLOCK_TYPE_LOC];
+            uint8_t byte1 = buffer[SAFETY_BYTE_LOC];
+            if (byte0 != SUPERBLOCK || byte1 != SAFETY_HEX) {
+                return ERR_BAD_DISK;
+            }
+        }
+        i++;
+    }
+    
     uint8_t byte0 = buffer[BLOCK_TYPE_LOC];
     uint8_t byte1 = buffer[SAFETY_BYTE_LOC];
     if (byte0 != SUPERBLOCK || byte1 != SAFETY_HEX) {
@@ -1035,18 +1108,21 @@ int _print_directory_contents(int block, int tabs) {
 }
 
 /* Uncomment and run this block if you want to test */
-// int main(int argc, char* argv[]) {
-//     if(argc > 1) {
-//         tfs_mkfs("SydneysDisk.dsk", 8192);    
-//     }
-
-//     if(tfs_mount("SydneysDisk.dsk") < 0) {
-//         printf("Failed to mount Sydney's disk\n");
-//         return -1;
-//     }
+int main(int argc, char* argv[]) {
+    int err;
+    if(argc > 1) {
+        err = tfs_mkfs("SydneysDisk.dsk", 512);   
+        printf("err: %d\n", err); 
+    }
 
 
-//     printf("%d\n", tfs_createDir("testDir"));
+    if((err = tfs_mount("SydneysDisk.dsk")) < 0) {
+        printf("Failed to mount Sydney's disk: %d\n", err);
+        return -1;
+    }
+
+
+    printf("%d\n", tfs_createDir("testDir"));
 
 //     printf("%d\n", tfs_createDir("testDir/quincys"));
 
@@ -1076,5 +1152,5 @@ int _print_directory_contents(int block, int tabs) {
 // //     printf("%d\n", tfs_removeAll("testDir/quincys"));
 
 
-//     return 0;
-// }
+    return 0;
+}
