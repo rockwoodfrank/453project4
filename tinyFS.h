@@ -169,6 +169,28 @@ int tfs_readByte(fileDescriptor FD, char *buffer);
 success/error codes.*/
 int tfs_seek(fileDescriptor FD, int offset);
 
+/* EXTRA FEATURES */
+
+/* creates a directory, name could contain a “/”-delimited path) */
+int tfs_createDir(char* dirName);
+
+/* deletes empty directory */
+int tfs_removeDir(char* dirName);
+
+/* recursively remove dirName and any file and directories under it. 
+Special “/” token may be used to indicate root dir. */
+int tfs_removeAll(char* dirName);
+
+/* (B) directory listing and file renaming */
+
+/* renames a file. New name should be passed in. File has to be open. */
+int tfs_rename(fileDescriptor FD, char* newName);
+
+/* lists all the files and directories on the disk, print the list to stdout */
+int tfs_readdir();
+
+
+
 // Timestamps
 // Implement creation, modification, and access timestamps for each file.
 // tfs_readFileInfo(fileDescriptor FD) returens the file's timestamps
