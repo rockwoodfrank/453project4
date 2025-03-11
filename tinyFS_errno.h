@@ -34,4 +34,6 @@
 #define ERR_DIR_ALREADY_EXISTS		-42		// trying to create a directory that already exists
 #define ERR_DIR_NOT_EMPTY			-43		// trying to remove a directory that isn't empty
 
+extern int dont_ingore_me;
+
 #endif

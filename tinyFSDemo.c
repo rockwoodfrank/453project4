@@ -10,6 +10,7 @@ int main(int argc, char* argv[]) {
        that functionality. run make clean to delete the disk again, or delete it manually. */
         
     /* if you can't mount... */
+
     if(tfs_mount("demo.dsk") < 0) {
         /* make a new disk and set it up */
         status = tfs_mkfs("demo.dsk", 8192);
@@ -149,6 +150,23 @@ int main(int argc, char* argv[]) {
             printf("open file error (%d)\n", steak);
             exit(EXIT_FAILURE);
         }
+
+        int waffles = tfs_openFile("/foods/sweet/waffles");
+        if(waffles < 0) {
+            printf("open file error (%d)\n", waffles);
+            exit(EXIT_FAILURE);
+        }
+
+        tfs_seek(waffles, 270);
+        char s;
+        status = tfs_readByte(waffles, &s);
+        if(status < 0) {
+            printf("readByte error (%d)\n", status);
+            exit(EXIT_FAILURE);
+        }
+
+        printf("\n\nFile data for the file \"waffles\"\n");
+        tfs_readFileInfo(waffles);
 
         char steakBlog[] = "Eat some yummy steak";
         status = tfs_writeFile(steak, steakBlog, sizeof(steakBlog));
