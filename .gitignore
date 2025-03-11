@@ -8,7 +8,9 @@ runBasicDiskTest
 basicTinyFSTest 
 runBasicTinyFSTest 
 tinyFSTest
+timeStampTest
 testSydneyDisk
 basicDisk
 basicFS
 tinyFSDisk
+demo

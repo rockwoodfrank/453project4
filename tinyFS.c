@@ -14,7 +14,7 @@ int fd_table_index = 0;
 
 /* internal helper functions */
 int     _update_fd_table_index();
-char _pop_free_block();
+char    _pop_free_block();
 int     _free_block(char block_addr);
 int     _parse_path(char* path, int index, char* buffer);
 int     _navigate_to_dir(char* dirName, char* last_path_h, int* current_h, int* parent_h, int searching_for); 
@@ -82,6 +82,8 @@ int tfs_mkfs(char *filename, int nBytes) {
 }
 
 int _check_block_con(int diskNum, int block, int block_type, char* blocks_checked) {
+    blocks_checked[block] = 1;
+
     char buffer[BLOCKSIZE];
     if ((ERR = readBlock(diskNum, block, buffer)) < 0) {
         return ERR;
@@ -99,7 +101,6 @@ int _check_block_con(int diskNum, int block, int block_type, char* blocks_checke
         }
 
         if (byte2 != 0) {
-            blocks_checked[block] = 1;
             if ((ERR = _check_block_con(diskNum, byte2, FREE, blocks_checked) < 0)) {
                 return ERR;
             }
@@ -111,7 +112,6 @@ int _check_block_con(int diskNum, int block, int block_type, char* blocks_checke
                 return ERR;
             }
         }
-        blocks_checked[block] = 1;
     }
 
     else if (block_type == INODE) {
@@ -142,7 +142,6 @@ int _check_block_con(int diskNum, int block, int block_type, char* blocks_checke
                 return ERR_BAD_DISK;
             }
         }
-        blocks_checked[block] = 1;
     }
 
     else if (block_type == FILEEX) {
@@ -150,7 +149,6 @@ int _check_block_con(int diskNum, int block, int block_type, char* blocks_checke
         if (byte0 != FILEEX || byte1 != SAFETY_HEX || byte2 != EMPTY_TABLEVAL || byte3 != EMPTY_TABLEVAL) {
             return ERR_BAD_DISK;
         }
-        blocks_checked[block] = 1;
     }
 
     else if (block_type == FREE) {
@@ -160,7 +158,6 @@ int _check_block_con(int diskNum, int block, int block_type, char* blocks_checke
         }
 
         if (byte2 != 0) {
-            blocks_checked[block] = 1;
             return _check_block_con(diskNum, byte2, FREE, blocks_checked);
         }
     }
@@ -198,6 +195,7 @@ int tfs_mount(char* diskname) {
         return ERR_BAD_DISK;
     }
 
+    /* Checks to see if every block is marked as checked */
     for (int i = 0; i < num_blocks; i++) {
         if (blocks_checked[i] == 0) {
             return ERR_BAD_DISK;
@@ -265,9 +263,15 @@ fileDescriptor tfs_openFile(char *name) {
         int fd_table_index = _update_fd_table_index();
         fd_table[fd_table_index] = parent;
         char *inode = malloc(BLOCKSIZE * sizeof(char));
-        readBlock(mounted->diskNum, parent, inode);
+        if ((ERR = readBlock(mounted->diskNum, parent, inode)) < 0) {
+            return ERR;
+        }
         _write_long(inode, time(NULL), FILE_ACCESSTIME_LOC);
-        writeBlock(mounted->diskNum, parent, inode);
+
+        
+        if ((ERR = writeBlock(mounted->diskNum, parent, inode)) < 0) {
+            return ERR;
+        }
         return fd_table_index;
     } 
 
@@ -601,7 +605,7 @@ int _navigate_to_dir(char* dirName, char* last_path_h, int* current_h, int* pare
                 /* get the inode of the found directory and store it as the parent */
                 parent = current;
                 current = current_block[i];
-                if ((ERR = readBlock(mounted->diskNum, current_block[i], current_block)) < 0) {
+                if ((ERR = readBlock(mounted->diskNum, current_block[i], current_block)) < 0) {                    
                     return ERR;
                 }
                 
@@ -1243,8 +1247,7 @@ int _fetch_parent(char inode_num) {
 // Writing longs to a block, specifically for timestamps
 int _write_long(char* block, unsigned long longVal, char loc) { 
     char *longConverted = (char *)&longVal;
-    for (int i = 0; i < 8; i ++)
-    {
+    for (int i = 0; i < 8; i ++) {
         block[loc+i] = longConverted[i];
     }
     return 0;
@@ -1252,54 +1255,55 @@ int _write_long(char* block, unsigned long longVal, char loc) {
 
 /* Uncomment and run this block if you want to test */
 int main(int argc, char* argv[]) {
-    if(argc > 1) {
-        tfs_mkfs("SydneysDisk.dsk", 8192);    
+        
+    tfs_mkfs("demo.dsk", 8192);    
+
+    int status;
+    status = tfs_mount("demo.dsk");
+    if(status < 0) {
+        printf("Mount error (%d)\n", status);
+        exit(EXIT_FAILURE);
     }
 
 
-    if((tfs_mount("SydneysDisk.dsk")) < 0) {
-        printf("Failed to mount Sydney's disk\n");
-        return -1;
+    /* Creating some files in the root directory */
+    int sydney = tfs_openFile("/Sydney");
+    if(sydney < 0) {
+        printf("Checking sydney status %d\n", sydney);
+    }
+    int rocky = tfs_openFile("/Rocky");
+    int quincy = tfs_openFile("/quincy");
+
+    /* now lets create some directories */
+    status = tfs_createDir("/humor");
+    if(status < 0) {
+        printf("create dir error (%d)\n", status);
+        exit(EXIT_FAILURE);
     }
 
-    printf("%d\n", tfs_createDir("testDir"));
+    status = tfs_createDir("/thomas");
+    if(status < 0) {
+        printf("create dir error (%d)\n", status);
+        exit(EXIT_FAILURE);
+    }
 
-    int fd = tfs_openFile("testDir/FOO");
-    printf("%d\n", fd);
+    status = tfs_openFile("/thomas/waffles");
+    if(status < 0) {
+        printf("open file error (%d)\n", status);
+        exit(EXIT_FAILURE);
+    }
 
-    printf("%d\n", tfs_deleteFile(fd));
+    status = tfs_openFile("/thomas/cake");
+    if(status < 0) {
+        printf("open file error (%d)\n", status);
+        exit(EXIT_FAILURE);
+    }
 
-//     #define REPEAT 20
-//     #define PATTERN "abcdefghijklmno "
-//     #define PATTERN_LEN (sizeof(PATTERN) - 1) // Exclude null terminator
-    
-//     char buffer[REPEAT * PATTERN_LEN + 1]; // +1 for null terminator
-//     for (int i = 0; i < REPEAT; i++) {
-//         memcpy(buffer + i * PATTERN_LEN, PATTERN, PATTERN_LEN);
-//     }
-//     buffer[REPEAT * PATTERN_LEN] = '\0'; // Null terminate the string
-
-//    printf("%s\n", buffer); // Print result
-
-//    tfs_writeFile(fd, buffer, REPEAT * PATTERN_LEN + 1);
-
-//    printf("\n\n\n");
-
-//    char byte;
-//    while(tfs_readByte(fd, &byte) >= 0) {
-//     printf("%c", byte);
-//    }
-
-//    printf("\n");
-
-
-
-//     // tfs_readdir();
-
-// //     printf("%d\n", tfs_removeDir("testDir/quincys/anisdir/ARAV"));
-
-// //     printf("%d\n", tfs_removeAll("testDir/quincys"));
-
+    status = tfs_openFile("/thomas/pie");
+    if(status < 0) {
+        printf("open file error (%d)\n", status);
+        exit(EXIT_FAILURE);
+    }
 
     return 0;
 }
