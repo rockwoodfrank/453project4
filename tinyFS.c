@@ -276,7 +276,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     }
 
     /* make sure there is an fd entry */
-    if(!fd_table[FD]) {
+    if(!fd_table[FD] || buffer == NULL) {
         return ERR_INVALID_FD;
     }
 
@@ -385,7 +385,7 @@ int tfs_readByte(fileDescriptor FD, char* buffer) {
     }
 
     /* make sure there is an fd entry */
-    if(!fd_table[FD]) {
+    if(!fd_table[FD] || buffer == NULL) {
         return ERR_INVALID_FD;
     }
 
@@ -895,15 +895,35 @@ int _check_block_con(int diskNum, int block, int block_type, char* blocks_checke
             return ERR_BAD_DISK;
         }
 
-        // check that everything in the inode is a data block / inode block (for dirs)
+        /* check that everything in the inode is a data block / inode block (for dirs) */
+        int num_data = 0;
+        int size = -1;
         int start_bound = file_type == FILE_TYPE_FILE ? FILE_DATA_LOC : DIR_DATA_LOC;
         int range = file_type == FILE_TYPE_FILE ? MAX_FILE_DATA : MAX_DIR_INODES;
         for (int i = start_bound; i < range; i++) {
-            if (file_type == FILE_TYPE_FILE && (buffer[i] !=0) && _check_block_con(diskNum, buffer[i], FILEEX, blocks_checked) != 0) {
-                return ERR_BAD_DISK;
-            } else if (file_type == FILE_TYPE_DIR && (buffer[i] != 0) && (_check_block_con(diskNum, buffer[i], INODE, blocks_checked) != 0)) {
-                return ERR_BAD_DISK;
+            if (buffer[i] != 0) {
+                /* make sure file inodes only have data blocks, and count how many*/
+                if (file_type == FILE_TYPE_FILE) {
+                    num_data++;
+                    printf("%d\n", num_data);
+                    if ((ERR = _check_block_con(diskNum, buffer[i], FILEEX, blocks_checked)) < 0) {
+                        return ERR;
+                    }
+
+                    /* grab the size, to check if the number of data blocks correlates */
+                    int s = FILE_SIZE_LOC;
+                    size = (buffer[s] << 24) + (buffer[s + 1] << 16) + (buffer[s + 2] << 8) + buffer[s + 3];
+
+                /* make sure directory inodes only contain inode blocks*/
+                } else if (file_type == FILE_TYPE_DIR  && (_check_block_con(diskNum, buffer[i], INODE, blocks_checked) != 0)) {
+                    return ERR_BAD_DISK;
+                }
             }
+        }
+
+        /* if a file, make sure the amount of data blocks correlates to the amount of data blocks it has*/
+        if (file_type == FILE_TYPE_FILE && ((size-1) / MAX_DATA_SPACE + 1 != num_data)) {
+            return ERR_BAD_DISK;
         }
     }
 
