@@ -42,7 +42,6 @@
    char phrase2[] = "(b) file content ";
  
    fileDescriptor aFD, bFD;
-   int i, returnValue;
  
  /* try to mount the disk */
    if (tfs_mount (DEFAULT_DISK_NAME) < 0)	/* if mount fails */
@@ -51,7 +50,7 @@
 	   if (tfs_mount (DEFAULT_DISK_NAME) < 0)	/* if we still can't open it... */
 	 {
 	   perror ("failed to open disk");	/* then just exit */
-	   return;
+	   return -1;
 	 }
 	 }
  
@@ -60,14 +59,14 @@
    if (fillBufferWithPhrase (phrase1, afileContent, afileSize) < 0)
 	 {
 	   perror ("failed");
-	   return;
+	   return -1;
 	 }
  
    bfileContent = (char *) malloc (bfileSize * sizeof (char));
    if (fillBufferWithPhrase (phrase2, bfileContent, bfileSize) < 0)
 	 {
 	   perror ("failed");
-	   return;
+	   return -1;
 	 }
  
  /* print content of files for debugging */
@@ -79,7 +78,7 @@
  /* read or write files to TinyFS */
  
  
-   aFD = tfs_openFile ("afile");
+   aFD = tfs_openFile ("/afile");
  
    if (aFD < 0)
 	 {
@@ -117,7 +116,7 @@
 	   /* now try to delete the file. It should fail because aFD is no longer valid */
 	   if (tfs_deleteFile (aFD) < 0)
 	 {
-	   aFD = tfs_openFile ("afile");	/* so we open it again */
+	   aFD = tfs_openFile ("/afile");	/* so we open it again */
 	   if (tfs_deleteFile (aFD) < 0)
 		 perror ("tfs_deleteFile failed");
  
@@ -128,7 +127,7 @@
 	 }
  
  /* now bfile tests */
-   bFD = tfs_openFile ("bfile");
+   bFD = tfs_openFile ("/bfile");
 
  
    if (bFD < 0)

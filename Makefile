@@ -43,6 +43,7 @@ basicTinyFSTest: $(OBJS) basicTinyFSTest.c
 
 runBasicTinyFSTest: basicTinyFSTest
 	./basicFS
+	./basicFS
 	echo \> basicTinyFSTestPassed.
 
 libDiskTest: libDisk.h libDisk.o libDiskTest.c

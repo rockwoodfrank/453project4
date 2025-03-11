@@ -246,9 +246,7 @@ void testTfs_updateFile()
     assert(tfs_writeFile(wFileNum, bigString, 256) == 0);
     wFileinode = verify_contents(diskName, sizeof(char) * BLOCKSIZE * 1, sizeof(char) * BLOCKSIZE);
     dataPtr = wFileinode[FILE_DATA_LOC];
-    char dataPtr2 = wFileinode[FILE_DATA_LOC+1];
     wFileData = verify_contents(diskName, sizeof(char) * BLOCKSIZE * dataPtr, sizeof(char) * BLOCKSIZE);
-    char *wFileData2 = verify_contents(diskName, sizeof(char) * BLOCKSIZE * dataPtr2, sizeof(char) * BLOCKSIZE);
     
     assert(wFileData[BLOCK_TYPE_LOC] == 0x03);
     assert(wFileData[SAFETY_BYTE_LOC] == 0x44);
@@ -257,8 +255,6 @@ void testTfs_updateFile()
     {
         if (i < MAX_FILE_DATA)
             assert(wFileData[i + FIRST_DATA_LOC] == bigString[i]);
-        // else
-        //     assert(wFileData2[i + FIRST_DATA_LOC] == bigString[i]);
     }
 
     assert(tfs_unmount() == 0);
