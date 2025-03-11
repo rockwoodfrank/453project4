@@ -9,6 +9,10 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include "tinyFS_errno.h"
 
 #define BLOCKSIZE 256

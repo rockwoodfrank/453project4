@@ -9,18 +9,18 @@ tinyFS* mounted = NULL;
 - fd_table_index: the next available index of fd_table once updated
     > updated by _update_fd_table_index()
 */
-uint8_t fd_table[FD_TABLESIZE]; 
+char fd_table[FD_TABLESIZE]; 
 int fd_table_index = 0;
 
 /* internal helper functions */
 int     _update_fd_table_index();
-uint8_t _pop_free_block();
-int     _free_block(uint8_t block_addr);
+char _pop_free_block();
+int     _free_block(char block_addr);
 int     _parse_path(char* path, int index, char* buffer);
 int     _navigate_to_dir(char* dirName, char* last_path_h, int* current_h, int* parent_h, int searching_for); 
 int     _print_directory_contents(int block, int tabs);
 int     _write_long(char* block, unsigned long longVal, char loc);
-int     _remove_inode_and_blocks(uint8_t inode, uint8_t parent);
+int     _remove_inode_and_blocks(char inode, char parent);
 
 /* error status holder */
 int ERR = 0;
@@ -44,7 +44,7 @@ int tfs_mkfs(char *filename, int nBytes) {
     }
 
     /* buffer to write data to newly opened disk*/
-    uint8_t buffer[BLOCKSIZE];
+    char buffer[BLOCKSIZE];
     memset(buffer, 0, BLOCKSIZE);
 
     /* initialize free blocks */
@@ -81,16 +81,16 @@ int tfs_mkfs(char *filename, int nBytes) {
     return TFS_SUCCESS;
 }
 
-int _check_block_con(int diskNum, int block, int, block_type, uint8_t* blocks_checked) {
-    uint8_t buffer[BLOCKSIZE];
-    if ((ERR = readBlock(diskNum, i, buffer)) < 0) {
+int _check_block_con(int diskNum, int block, int block_type, char* blocks_checked) {
+    char buffer[BLOCKSIZE];
+    if ((ERR = readBlock(diskNum, block, buffer)) < 0) {
         return ERR;
     }
 
-    uint8_t byte0 = buffer[BLOCK_TYPE_LOC];
-    uint8_t byte1 = buffer[SAFETY_BYTE_LOC];
-    uint8_t byte2 = buffer[FREE_PTR_LOC];
-    uint8_t byte3 = buffer[EMPTY_BYTE_LOC];
+    char byte0 = buffer[BLOCK_TYPE_LOC];
+    char byte1 = buffer[SAFETY_BYTE_LOC];
+    char byte2 = buffer[FREE_PTR_LOC];
+    char byte3 = buffer[EMPTY_BYTE_LOC];
 
     if (block_type == SUPERBLOCK) {
         /* check the first four bytes */
@@ -122,23 +122,23 @@ int _check_block_con(int diskNum, int block, int, block_type, uint8_t* blocks_ch
 
         /* check that the file type flag is valid */
         int file_type = buffer[FILE_TYPE_FLAG_LOC];
-        if (file_type != FILE_TYPE_DIR || file_type != FILE_TYPE_FLAG) {
+        if (file_type != FILE_TYPE_DIR || file_type != FILE_TYPE_FILE) {
             return ERR_BAD_DISK;
         }
 
         /* check that the name is valid */
-        char* filename = buffer[FILE_NAME_LOC];
+        char* filename = buffer + FILE_NAME_LOC;
         if (buffer[FILE_NAME_LOC + FILENAME_LENGTH] != 0 || strlen(filename) <= 0) {
             return ERR_BAD_DISK;
         }
 
         // check that everything in the inode is a data block / inode block (for dirs)
-        start_bound = file_type == FILE_TYPE_FILE ? FILE_DATA_LOC : DIR_DATA_LOC;
-        range = file_type == FILE_TYPE_FILE ? MAX_FILE_DATA : MAX_DIR_INODES;
+        int start_bound = file_type == FILE_TYPE_FILE ? FILE_DATA_LOC : DIR_DATA_LOC;
+        int range = file_type == FILE_TYPE_FILE ? MAX_FILE_DATA : MAX_DIR_INODES;
         for (int i = start_bound; i < range; i++) {
-            if (file_type == FILE_TYPE_FILE && _check_block_con(diskNum, buffer[i], FILEEX) != 0) {
+            if (file_type == FILE_TYPE_FILE && _check_block_con(diskNum, buffer[i], FILEEX, blocks_checked) != 0) {
                 return ERR_BAD_DISK;
-            } else if (file_type == FILE_TYPE_DIR && _check_block_con(diskNum, buffer[i], INODE) != 0) {
+            } else if (file_type == FILE_TYPE_DIR && _check_block_con(diskNum, buffer[i], INODE, blocks_checked) != 0) {
                 return ERR_BAD_DISK;
             }
         }
@@ -189,12 +189,12 @@ int tfs_mount(char* diskname) {
         return ERR_BAD_DISK;
     }
     int num_blocks = file_stat.st_size / BLOCKSIZE;
-    uint8_t blocks_checked = (uint8_t*) malloc(num_blocks);
+    char* blocks_checked = (char*) malloc(num_blocks);
     memset(blocks_checked, 0, num_blocks);
 
 
     /* Returning an ERRor if the file isn't formatted properly */
-    if (_check_block_con(diskNum, i, SUPERBLOCK, blocks_checked) < 0) {
+    if (_check_block_con(diskNum, SUPERBLOCK_DISKLOC, SUPERBLOCK, blocks_checked) < 0) {
         return ERR_BAD_DISK;
     }
 
@@ -246,9 +246,9 @@ fileDescriptor tfs_openFile(char *name) {
         return ERR_NO_DISK_MOUNTED;
     }
 
-    /* make sure the input is vlaid */
-    if(name == NULL) {
-        return ERR_INVALID_INPUT;
+    /* make sure the given dirName is not null */
+    if (name == NULL || name[0] != '/') {
+        return ERR_INVALID_INPUT;  // ERR: invalid input error
     }
 
     int parent = SUPERBLOCK_DISKLOC;
@@ -272,7 +272,7 @@ fileDescriptor tfs_openFile(char *name) {
     } 
 
     /* get next free block */
-    uint8_t next_free_block = _pop_free_block();
+    char next_free_block = _pop_free_block();
     if(!next_free_block) {
         return ERR_DISK_OUT_OF_SPACE;
     }
@@ -305,7 +305,7 @@ fileDescriptor tfs_openFile(char *name) {
     }
 
     /* Get the parent */
-    uint8_t parent_block[BLOCKSIZE];
+    char parent_block[BLOCKSIZE];
     if ((ERR = readBlock(mounted->diskNum, parent, parent_block)) < 0) {
         return ERR;
     }
@@ -356,7 +356,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     }
 
     /* Grab the block's inode */
-    uint8_t inode[BLOCKSIZE]; 
+    char inode[BLOCKSIZE]; 
     if ((ERR = readBlock(mounted->diskNum, fd_table[FD], inode)) < 0) {
         return ERR;
     }
@@ -372,7 +372,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     // Resetting the direct blocks so the data is "lost" since nothing is pointing to them
     // Counter for clearing
     i = 0;
-    uint8_t dir_block = inode[FILE_DATA_LOC + i++];
+    char dir_block = inode[FILE_DATA_LOC + i++];
     while(dir_block != 0x0) {
         // Allocating each block as "free" and adding them to the linked list
         if ((ERR = _free_block(dir_block)) < 0) {
@@ -387,8 +387,8 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     // will not take up extra blocks. Might cause problems in the future.
     int numBlocks = ((size-1) / MAX_DATA_SPACE) + 1;
     // Writing those blocks to the file
-    uint8_t temp_addr;
-    uint8_t temp_block[BLOCKSIZE];
+    char temp_addr;
+    char temp_block[BLOCKSIZE];
     int bufferHead = 0;
     for (int i = 0; i < numBlocks; i++) {
         // A value to keep track of where we are in the buffer
@@ -441,7 +441,7 @@ int tfs_deleteFile(fileDescriptor FD) {
     if(!fd_table[FD]) {
         return ERR_INVALID_FD;
     }
-    uint8_t inode_num = fd_table[FD];
+    char inode_num = fd_table[FD];
 
     return _remove_inode_and_blocks(inode_num, SUPERBLOCK_DISKLOC);
 }
@@ -458,7 +458,7 @@ int tfs_readByte(fileDescriptor FD, char* buffer) {
     }
 
     /* grab the inode block */
-    uint8_t inode[BLOCKSIZE]; 
+    char inode[BLOCKSIZE]; 
     if ((ERR = readBlock(mounted->diskNum, fd_table[FD], inode)) < 0) {
         return ERR;
     }
@@ -484,8 +484,8 @@ int tfs_readByte(fileDescriptor FD, char* buffer) {
     }
 
     /* grab the data block */
-    uint8_t data_block_num = inode[FILE_DATA_LOC + block_num];
-    uint8_t data_block[BLOCKSIZE]; 
+    char data_block_num = inode[FILE_DATA_LOC + block_num];
+    char data_block[BLOCKSIZE]; 
     if ((ERR = readBlock(mounted->diskNum, data_block_num, data_block)) < 0) {
         return ERR;
     }
@@ -512,7 +512,7 @@ int tfs_seek(fileDescriptor FD, int offset) {
     }
 
     /* grab the inode */
-    uint8_t inode[BLOCKSIZE]; 
+    char inode[BLOCKSIZE]; 
     if ((ERR = readBlock(mounted->diskNum, fd_table[FD], inode)) < 0) {
         return ERR;
     }
@@ -549,14 +549,14 @@ int _navigate_to_dir(char* dirName, char* last_path_h, int* current_h, int* pare
 
     /* The superblock effectively behaves as the inode for the root */
     int current = SUPERBLOCK_DISKLOC;
-    uint8_t current_block[BLOCKSIZE]; 
+    char current_block[BLOCKSIZE]; 
     int parent = current;
     if ((ERR = readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, current_block)) < 0) {
         return ERR;
     }
 
     bool dir_found_flag = false; 
-    int path_index = 0;
+    int path_index = 1;
     char cur_path[FILENAME_LENGTH + 1]; 
     char inode_buffer[BLOCKSIZE];
 
@@ -635,9 +635,10 @@ int tfs_createDir(char* dirName) {
     }
 
     /* make sure the given dirName is not null */
-    if (dirName == NULL) {
+    if (dirName == NULL || dirName[0] != '/') {
         return ERR_INVALID_INPUT;  // ERR: invalid input error
     }
+
 
     int parent = SUPERBLOCK_DISKLOC;
     char cur_path[FILENAME_LENGTH + 1];
@@ -654,7 +655,7 @@ int tfs_createDir(char* dirName) {
     }
 
     /* get the next free block to store the new inode in */
-    uint8_t next_free_block = _pop_free_block();
+    char next_free_block = _pop_free_block();
     if(!next_free_block) {
         return ERR_DISK_OUT_OF_SPACE;
     }
@@ -680,7 +681,7 @@ int tfs_createDir(char* dirName) {
     }
 
     /* grab the parent's inode and update its pointers to hold the new directory */
-    uint8_t parent_block[BLOCKSIZE];
+    char parent_block[BLOCKSIZE];
     if ((ERR = readBlock(mounted->diskNum, parent, parent_block)) < 0) {
         return ERR;
     }
@@ -712,7 +713,7 @@ int tfs_removeDir(char* dirName) {
     }
 
     /* make sure the given dirName is not null */
-    if (dirName == NULL) {
+    if (dirName == NULL || dirName[0] != '/') {
         return ERR_INVALID_INPUT;  // ERR: invalid input error
     }
 
@@ -746,7 +747,7 @@ int tfs_removeDir(char* dirName) {
     if ((ERR = _free_block(current)) < 0) {
         return ERR;
     }
-    uint8_t parent_block[BLOCKSIZE];
+    char parent_block[BLOCKSIZE];
     if ((ERR = readBlock(mounted->diskNum, parent, parent_block)) < 0) {
         return ERR;
     }
@@ -800,7 +801,7 @@ int tfs_removeAll(char* dirName) {
     }
     
     /* re-grab the block of the directory and remove every item in it */
-    uint8_t current_inode[BLOCKSIZE];
+    char current_inode[BLOCKSIZE];
     if ((ERR = readBlock(mounted->diskNum, current, current_inode)) < 0) {
         return ERR;
     }
@@ -820,7 +821,7 @@ int tfs_removeAll(char* dirName) {
                 replace fd_table[FD] with the inode block number */
                 // Grab the block's inode
                 // TODO : make sure matches w deleteFile after done fixing things
-                uint8_t inode[BLOCKSIZE]; 
+                char inode[BLOCKSIZE]; 
                 if ((ERR = readBlock(mounted->diskNum, current_inode[i], inode)) < 0) {
                     return ERR;
                 }
@@ -828,7 +829,7 @@ int tfs_removeAll(char* dirName) {
                 // Resetting the direct blocks so the data is "lost" since nothing is pointing to them
                 // Counter for clearing
                 int i = 0;
-                uint8_t data_block = inode[FILE_DATA_LOC + i++];
+                char data_block = inode[FILE_DATA_LOC + i++];
                 while(data_block != 0x0) {
                     // Allocating each block as "free" and adding them to the linked list
                     if ((ERR = _free_block(data_block)) < 0) {
@@ -842,7 +843,7 @@ int tfs_removeAll(char* dirName) {
                     return ERR;
                 }
             } else if (inode_buffer[FILE_TYPE_FLAG_LOC] == FILE_TYPE_DIR) {
-                uint8_t inode[BLOCKSIZE]; 
+                char inode[BLOCKSIZE]; 
                 if ((ERR = readBlock(mounted->diskNum, current_inode[i], inode)) < 0) {
                     return ERR;
                 }
@@ -925,12 +926,12 @@ int tfs_readdir() {
         return ERR_NO_DISK_MOUNTED;
     }
 
-    uint8_t superblock[BLOCKSIZE];
+    char superblock[BLOCKSIZE];
     if ((ERR = readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock)) < 0) {
         return ERR;
     }
 
-    uint8_t inode[BLOCKSIZE];
+    char inode[BLOCKSIZE];
     for(int i = 0; i < MAX_SUPBLOCK_INODES; i++) {
 
         if(superblock[i + FIRST_SUPBLOCK_INODE_LOC]) {
@@ -971,12 +972,12 @@ int tfs_readFileInfo(fileDescriptor FD) {
     time_t *accessedTime;
     char *fileName;
     int *fileSize;
-    uint8_t inode[BLOCKSIZE];
+    char inode[BLOCKSIZE];
     
     if ((ERR = readBlock(mounted->diskNum, fd_table[FD], inode)) < 0) {
         return ERR;
     }
-    fileName = &inode[FILE_NAME_LOC];
+    fileName = inode + FILE_NAME_LOC;
     // Print file name
     printf("Name:\t\t%s\n", fileName);
     if (inode[FILE_TYPE_FLAG_LOC] == FILE_TYPE_FILE) {
@@ -1067,16 +1068,16 @@ int _update_fd_table_index() {
 
 /* Pop and return the next free block, and replace the superblock index
  with that block's next block. Should return 0 if no more free blocks exist. */
-uint8_t _pop_free_block() {
+char _pop_free_block() {
     // Grab the superblock. This is done locally as some functions may not
     // need to store the superblock so this function does it just in case
-    uint8_t superblock[BLOCKSIZE];
+    char superblock[BLOCKSIZE];
     if ((ERR = readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock)) < 0) {
         return ERR;
     }
 
-    uint8_t newBlock[BLOCKSIZE];
-    uint8_t next_free_block = superblock[FREE_PTR_LOC];
+    char newBlock[BLOCKSIZE];
+    char next_free_block = superblock[FREE_PTR_LOC];
     /* then, grab the address for the next free inode*/
     if ((ERR = readBlock(mounted->diskNum, next_free_block, newBlock)) < 0) {
         return ERR;
@@ -1091,15 +1092,15 @@ uint8_t _pop_free_block() {
 
 /* free_block turns the given block into a free block, and also adds
     it to the list of free blocks. Returns a 0 on success or -1 on error*/
-int _free_block(uint8_t block_addr) {
+int _free_block(char block_addr) {
     // Grab the superblock
-    uint8_t superblock[BLOCKSIZE];
+    char superblock[BLOCKSIZE];
     if ((ERR = readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock)) < 0) {
         return ERR;
     }
 
     // Change block type
-    uint8_t clean_block[BLOCKSIZE];
+    char clean_block[BLOCKSIZE];
     clean_block[BLOCK_TYPE_LOC] = FREE;
     clean_block[SAFETY_BYTE_LOC] = SAFETY_HEX;
     clean_block[FREE_PTR_LOC] = superblock[FREE_PTR_LOC];
@@ -1119,12 +1120,12 @@ int _free_block(uint8_t block_addr) {
 
 int _print_directory_contents(int block, int tabs) {
 
-    uint8_t directory_inode[BLOCKSIZE];
+    char directory_inode[BLOCKSIZE];
     if ((ERR = readBlock(mounted->diskNum, block, directory_inode)) < 0) {
         return ERR;
     }
 
-    uint8_t inode[BLOCKSIZE];
+    char inode[BLOCKSIZE];
     for(int i = 0; i < MAX_DIR_INODES; i++) {
 
         if(directory_inode[i + DIR_DATA_LOC]) {
@@ -1151,11 +1152,11 @@ int _print_directory_contents(int block, int tabs) {
     return TFS_SUCCESS;
 }
 
-int _remove_inode_and_blocks(uint8_t inode_num, uint8_t parent)
+int _remove_inode_and_blocks(char inode_num, char parent)
 {
     /* Grab the block's inode */
-    uint8_t inode[BLOCKSIZE]; 
-    uint8_t parent_block[BLOCKSIZE];
+    char inode[BLOCKSIZE]; 
+    char parent_block[BLOCKSIZE];
     if ((ERR = readBlock(mounted->diskNum, inode_num, inode)) < 0 ) {
         return ERR;
     }
@@ -1163,7 +1164,7 @@ int _remove_inode_and_blocks(uint8_t inode_num, uint8_t parent)
     // Resetting the direct blocks so the data is "lost" since nothing is pointing to them
     // Counter for clearing
     int i = 0;
-    uint8_t dir_block = inode[FILE_DATA_LOC + i++];
+    char dir_block = inode[FILE_DATA_LOC + i++];
     while(dir_block != 0x0) {
         // Allocating each block as "free" and adding them to the linked list
         if ((ERR = _free_block(dir_block)) < 0) {
@@ -1190,7 +1191,8 @@ int _remove_inode_and_blocks(uint8_t inode_num, uint8_t parent)
     if ((ERR = readBlock(mounted->diskNum, parent, parent_block)) < 0 ) {
         return ERR;
     }
-    int i = parent == SUPERBLOCK_DISKLOC ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
+
+    i = parent == SUPERBLOCK_DISKLOC ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
     while (parent_block[i] != inode_num) i++;
 
     parent_block[i] = EMPTY_TABLEVAL;
@@ -1202,16 +1204,16 @@ int _remove_inode_and_blocks(uint8_t inode_num, uint8_t parent)
 }
 
 /* given an inode, finds the parent */
-int _fetch_parent(uint8_t inode_num) {
+int _fetch_parent(char inode_num) {
 
     struct stat file_stat;
-    if (fstat(diskNum, &file_stat) == -1) {
+    if (fstat(mounted->diskNum, &file_stat) == -1) {
         return SYS_ERR_FSTAT;
     }  
 
     int num_blocks = file_stat.st_size / BLOCKSIZE; 
 
-    uint8_t buffer[BLOCKSIZE];
+    char buffer[BLOCKSIZE];
     for(int i=0; i < num_blocks; i++) {
 
         if((ERR = readBlock(mounted->diskNum, i, buffer)) < 0) {
@@ -1219,7 +1221,7 @@ int _fetch_parent(uint8_t inode_num) {
         }
 
         if(i == SUPERBLOCK_DISKLOC) {
-            for(int j = FIRST_SUPBLOCK_INODE_LOC; j < FIRST_SUPBLOCK_INODE_LOC + MAX_SUPBLOCK_INODES) {
+            for(int j = FIRST_SUPBLOCK_INODE_LOC; j < FIRST_SUPBLOCK_INODE_LOC + MAX_SUPBLOCK_INODES; j++) {
                 if(buffer[j] == inode_num) {
                     return SUPERBLOCK_DISKLOC;
                 }

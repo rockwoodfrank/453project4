@@ -8,6 +8,10 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 /* use this name for a default emulated disk file name */
 #define DEFAULT_DISK_NAME "tinyFSDisk"
