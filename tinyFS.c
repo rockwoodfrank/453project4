@@ -21,6 +21,7 @@ int     _navigate_to_dir(char* dirName, char* last_path_h, int* current_h, int* 
 int     _print_directory_contents(int block, int tabs);
 int     _write_long(char* block, unsigned long longVal, char loc);
 int     _remove_inode_and_blocks(char inode, char parent);
+int     _fetch_parent(char inode_num);
 
 /* error status holder */
 int ERR = 0;
@@ -447,7 +448,14 @@ int tfs_deleteFile(fileDescriptor FD) {
     }
     char inode_num = fd_table[FD];
 
-    return _remove_inode_and_blocks(inode_num, SUPERBLOCK_DISKLOC);
+    int parent = _fetch_parent(inode_num);
+    if (parent < 0) {
+        return parent;
+    }
+
+    printf("fetched parent: %d", parent);
+
+    return _remove_inode_and_blocks(inode_num, parent);
 }
 
 int tfs_readByte(fileDescriptor FD, char* buffer) {
@@ -792,7 +800,7 @@ int tfs_removeAll(char* dirName) {
     int current = SUPERBLOCK_DISKLOC;
     int parent = current;
     char cur_path[FILENAME_LENGTH + 1];
-    
+
     /* make sure the last directory in the path does already exist */
     /* skip if given dirName "/" */
     if (strcmp(dirName, "/") != 0) {
@@ -806,6 +814,7 @@ int tfs_removeAll(char* dirName) {
             return ERR_DIR_NOT_FOUND; // ERR: not a directory, directory not found
         }
     }
+
 
     /* re-grab the block of the directory and remove every item in it */
     char current_inode[BLOCKSIZE];
@@ -825,31 +834,11 @@ int tfs_removeAll(char* dirName) {
             readBlock(mounted->diskNum, current_inode[i], inode_buffer);
 
             if (inode_buffer[FILE_TYPE_FLAG_LOC] == FILE_TYPE_FILE) {
-                printf("removing file\n");
-                /* SYDNOTE: code copied from deleteFile, should make a helper function
-                called smth like deleteFileByInode where all the same code except 
-                replace fd_table[FD] with the inode block number */
-                // Grab the block's inode
-                // TODO : make sure matches w deleteFile after done fixing things
-                char inode[BLOCKSIZE]; 
-                if ((ERR = readBlock(mounted->diskNum, current_inode[i], inode)) < 0) {
+                if ((ERR = _remove_inode_and_blocks(current_inode[i], parent)) < 0) {
                     return ERR;
                 }
-
-                // Resetting the direct blocks so the data is "lost" since nothing is pointing to them
-                // Counter for clearing
-                int i = 0;
-                char data_block = inode[FILE_DATA_LOC + i++];
-                while(data_block != 0x0) {
-                    // Allocating each block as "free" and adding them to the linked list
-                    if ((ERR = _free_block(data_block)) < 0) {
-                        return ERR;
-                    }
-                    data_block = inode[FILE_DATA_LOC + i++];
-                }
-
-                // Finally, freeing the inode
-                if ((ERR = _free_block(current_inode[i])) < 0) {
+                current_inode[i] = 0x0;
+                if ((ERR = writeBlock(mounted->diskNum, current, current_inode)) < 0) {
                     return ERR;
                 }
             } else if (inode_buffer[FILE_TYPE_FLAG_LOC] == FILE_TYPE_DIR) {
@@ -863,18 +852,17 @@ int tfs_removeAll(char* dirName) {
                 if (dir_path == NULL) {
                     return SYS_ERR_MALLOC;
                 }
+
                 strcpy(dir_path, dirName);
-                strcat(dir_path, "/");
+                if (strcmp(dirName, "/") != 0) {
+                    strcat(dir_path, "/");
+                }
                 strcat(dir_path, inode_buffer + FILE_NAME_LOC);
 
                 if ((ERR = tfs_removeAll(dir_path)) < 0) { 
                     printf("right here\n");
                     return ERR;
                 }
-                /* SYDNOTE: hmm maybe we do need a helper where removeall just calls a 
-                helper to remove all by given dir inode rather than dirname 
-                then we can use that to minimiz duplication between createDir, removeDir, 
-                removeAll, and then use it here to recurse */
                 free(dir_path); // TODO: test that this works
             }
             printf("here\n");
@@ -889,7 +877,7 @@ int tfs_removeAll(char* dirName) {
 
     /* if not the root directory,
     once everything is removed, delete the current directory */
-    return parent == 0 ? 0 : tfs_removeDir(dirName);
+    return current == 0 ? 0 : tfs_removeDir(dirName);
 }
 
 /* (B) directory listing and file renaming */
@@ -974,6 +962,7 @@ int tfs_readdir() {
 }
 
 /* (E) timestamps */
+
 /* returns the file’s creation time or all info */
 int tfs_readFileInfo(fileDescriptor FD) {
     /* make sure there is a mounted tfs */
@@ -1023,8 +1012,6 @@ int tfs_readFileInfo(fileDescriptor FD) {
 }
 
 /* ~ HELPER FUNCTIONS ~ */
-// SYDNOTE: make sure we are error handling the helper functions when using them
-
 
 /* _parse_path(): parse the given path to get the next directory/file at the given index
     + store the path name in the given buffer, up to the max filename length
@@ -1122,6 +1109,7 @@ int _free_block(char block_addr) {
     char clean_block[BLOCKSIZE];
     clean_block[BLOCK_TYPE_LOC] = FREE;
     clean_block[SAFETY_BYTE_LOC] = SAFETY_HEX;
+    clean_block[EMPTY_BYTE_LOC] = EMPTY_TABLEVAL;
     clean_block[FREE_PTR_LOC] = superblock[FREE_PTR_LOC];
     memset(clean_block + FIRST_DATA_LOC, 0, MAX_DATA_SPACE);
     if ((ERR = writeBlock(mounted->diskNum, block_addr, clean_block)) < 0) {
@@ -1171,11 +1159,9 @@ int _print_directory_contents(int block, int tabs) {
     return TFS_SUCCESS;
 }
 
-int _remove_inode_and_blocks(char inode_num, char parent)
-{
+int _remove_inode_and_blocks(char inode_num, char parent) {
     /* Grab the block's inode */
     char inode[BLOCKSIZE]; 
-    char parent_block[BLOCKSIZE];
     if ((ERR = readBlock(mounted->diskNum, inode_num, inode)) < 0 ) {
         return ERR;
     }
@@ -1206,7 +1192,8 @@ int _remove_inode_and_blocks(char inode_num, char parent)
             }
         }
     }
-    // Remove the inode number from the superblock
+    // Remove the inode number from the parent_block
+    char parent_block[BLOCKSIZE];
     if ((ERR = readBlock(mounted->diskNum, parent, parent_block)) < 0 ) {
         return ERR;
     }
@@ -1281,44 +1268,50 @@ int _write_long(char* block, unsigned long longVal, char loc) {
 //     }
 
 
-//     /* Creating some files in the root directory */
-//     int sydney = tfs_openFile("/Sydney");
-//     if(sydney < 0) {
-//         printf("Checking sydney status %d\n", sydney);
-//     }
-//     int rocky = tfs_openFile("/Rocky");
-//     int quincy = tfs_openFile("/quincy");
+    /* Creating some files in the root directory */
+    // int sydney = tfs_openFile("/Sydney");
+    // if(sydney < 0) {
+    //     printf("Checking sydney status %d\n", sydney);
+    // }
+    // int rocky = tfs_openFile("/Rocky");
+    // int quincy = tfs_openFile("/quincy");
 
-//     /* now lets create some directories */
-//     status = tfs_createDir("/humor");
-//     if(status < 0) {
-//         printf("create dir error (%d)\n", status);
-//         exit(EXIT_FAILURE);
-//     }
+    /* now lets create some directories */
+    // status = tfs_createDir("/humor");
+    // if(status < 0) {
+    //     printf("create dir error (%d)\n", status);
+    //     exit(EXIT_FAILURE);
+    // }
 
-//     status = tfs_createDir("/thomas");
-//     if(status < 0) {
-//         printf("create dir error (%d)\n", status);
-//         exit(EXIT_FAILURE);
-//     }
+    // status = tfs_createDir("/thomas");
+    // if(status < 0) {
+    //     printf("create dir error (%d)\n", status);
+    //     exit(EXIT_FAILURE);
+    // }
 
-//     status = tfs_openFile("/thomas/waffles");
-//     if(status < 0) {
-//         printf("open file error (%d)\n", status);
-//         exit(EXIT_FAILURE);
-//     }
+    // int waffles = tfs_openFile("/thomas/waffles");
+    // if(status < 0) {
+    //     printf("open file error (%d)\n", status);
+    //     exit(EXIT_FAILURE);
+    // }
 
-//     status = tfs_openFile("/thomas/cake");
-//     if(status < 0) {
-//         printf("open file error (%d)\n", status);
-//         exit(EXIT_FAILURE);
-//     }
+    // status = tfs_openFile("/thomas/cake");
+    // if(status < 0) {
+    //     printf("open file error (%d)\n", status);
+    //     exit(EXIT_FAILURE);
+    // }
 
-//     status = tfs_openFile("/thomas/pie");
-//     if(status < 0) {
-//         printf("open file error (%d)\n", status);
-//         exit(EXIT_FAILURE);
+    // status = tfs_openFile("/thomas/pie");
+    // if(status < 0) {
+    //     printf("open file error (%d)\n", status);
+    //     exit(EXIT_FAILURE);
+    // }
+//     if (argc > 1) {
+//         printf("%d\n", tfs_removeAll("/thomas"));
+//         // printf("%d\n", tfs_deleteFile(waffles));
+
 //     }
+    
 
 //     return 0;
 // }
