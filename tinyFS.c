@@ -1155,7 +1155,7 @@ int _remove_inode_and_blocks(uint8_t inode_num, uint8_t parent)
 {
     /* Grab the block's inode */
     uint8_t inode[BLOCKSIZE]; 
-    uint8_t superblock[BLOCKSIZE];
+    uint8_t parent_block[BLOCKSIZE];
     if ((ERR = readBlock(mounted->diskNum, inode_num, inode)) < 0 ) {
         return ERR;
     }
@@ -1187,14 +1187,14 @@ int _remove_inode_and_blocks(uint8_t inode_num, uint8_t parent)
         }
     }
     // Remove the inode number from the superblock
-    if ((ERR = readBlock(mounted->diskNum, parent, superblock)) < 0 ) {
+    if ((ERR = readBlock(mounted->diskNum, parent, parent_block)) < 0 ) {
         return ERR;
     }
-    int i = FIRST_SUPBLOCK_INODE_LOC;
-    while (superblock[i] != inode_num) i++;
+    int i = parent == SUPERBLOCK_DISKLOC ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
+    while (parent_block[i] != inode_num) i++;
 
-    superblock[i] = EMPTY_TABLEVAL;
-    if ((ERR = writeBlock(mounted->diskNum, parent, superblock)) < 0 ) {
+    parent_block[i] = EMPTY_TABLEVAL;
+    if ((ERR = writeBlock(mounted->diskNum, parent, parent_block)) < 0 ) {
         return ERR;
     }
 
