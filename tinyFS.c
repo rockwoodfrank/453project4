@@ -733,7 +733,6 @@ int tfs_removeAll(char* dirName) {
         }
     }
 
-
     /* re-grab the block of the directory and remove every item in it */
     char current_inode[BLOCKSIZE];
     if ((ERR = readBlock(mounted->diskNum, current, current_inode)) < 0) {
@@ -750,7 +749,7 @@ int tfs_removeAll(char* dirName) {
             readBlock(mounted->diskNum, current_inode[i], inode_buffer);
 
             if (inode_buffer[FILE_TYPE_FLAG_LOC] == FILE_TYPE_FILE) {
-                if ((ERR = _remove_inode_and_blocks(current_inode[i], parent)) < 0) {
+                if ((ERR = _remove_inode_and_blocks(current_inode[i], current)) < 0) {
                     return ERR;
                 }
                 current_inode[i] = 0x0;
@@ -1229,6 +1228,7 @@ int _remove_inode_and_blocks(char inode_num, char parent) {
 
     i = parent == SUPERBLOCK_DISKLOC ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
     while (parent_block[i] != inode_num) i++;
+
 
     parent_block[i] = EMPTY_TABLEVAL;
     if ((ERR = writeBlock(mounted->diskNum, parent, parent_block)) < 0 ) {

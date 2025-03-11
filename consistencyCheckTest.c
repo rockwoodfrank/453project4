@@ -15,33 +15,24 @@ int main()
     assert(tfs_mount("testFiles/normalDisk.dsk") == TFS_SUCCESS);
 
     assert(tfs_readdir() == 0);
-    printf("Break A\n");
     assert(tfs_removeAll("/") == 0);
-    printf("Break B\n");
 
     tfs_unmount();
-    printf("Break C\n");
     make_good_disk();
-    printf("Break D\n");
     assert(tfs_mount("testFiles/normalDisk.dsk") == TFS_SUCCESS);
-    printf("Break E\n");
     fileDescriptor tobeChanged = tfs_openFile("/readme");
-    printf("Break F\n");
     assert(tfs_rename(tobeChanged, "itsnew") == 0);
 
-    printf("Break G\n");
     assert(tfs_rename(tobeChanged, "someothername") != TFS_SUCCESS);
 
-    printf("Break H\n");
+
     assert(tfs_rename(tobeChanged, "") != TFS_SUCCESS);
 
     // Tests for data blocks not on free list or allocated to an inode
-    printf("Break I\n");
+
     assert(tfs_mount("testFiles/weirdBlocks.dsk") != TFS_SUCCESS);
     // Tests for blocks that have been corrupted
-    printf("Break J\n");
     assert(tfs_mount("testFiles/lessCorrupted.dsk") != TFS_SUCCESS);
-    printf("Break H\n");
     // Tests where a block pointed to by an inode isn't a data block
     assert(tfs_mount("testFiles/weirdPointer.dsk") != TFS_SUCCESS);
     return 0;
