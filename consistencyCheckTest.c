@@ -20,9 +20,8 @@ void main()
 
     // Tests for data blocks not on free list or allocated to an inode
     assert(tfs_mount("testFiles/weirdBlocks.dsk") != TFS_SUCCESS);
-
     // Tests for blocks that have been corrupted
-    assert(tfs_mount("testFiles/corruptedDisk.dsk") != TFS_SUCCESS);
+    assert(tfs_mount("testFiles/lessCorrupted.dsk") != TFS_SUCCESS);
 
     // Tests where a block pointed to by an inode isn't a data block
     assert(tfs_mount("testFiles/weirdPointer.dsk") != TFS_SUCCESS);
