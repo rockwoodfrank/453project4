@@ -20,7 +20,7 @@ int     _parse_path(char* path, int index, char* buffer);
 int     _navigate_to_dir(char* dirName, char* last_path_h, int* current_h, int* parent_h, int searching_for); 
 int     _print_directory_contents(int block, int tabs);
 int     _write_long(char* block, unsigned long longVal, char loc);
-int     _remove_inode_and_blocks(uint8_t inode);
+int     _remove_inode_and_blocks(uint8_t inode, uint8_t parent);
 
 /* error status holder */
 int ERR = 0;
@@ -412,7 +412,7 @@ int tfs_deleteFile(fileDescriptor FD) {
     }
     uint8_t inode_num = fd_table[FD];
 
-    return _remove_inode_and_blocks(inode_num);
+    return _remove_inode_and_blocks(inode_num, SUPERBLOCK_DISKLOC);
 }
 
 int tfs_readByte(fileDescriptor FD, char* buffer) {
@@ -1117,7 +1117,7 @@ int _print_directory_contents(int block, int tabs) {
     return TFS_SUCCESS;
 }
 
-int _remove_inode_and_blocks(uint8_t inode_num)
+int _remove_inode_and_blocks(uint8_t inode_num, uint8_t parent)
 {
     /* Grab the block's inode */
     uint8_t inode[BLOCKSIZE]; 
@@ -1153,14 +1153,14 @@ int _remove_inode_and_blocks(uint8_t inode_num)
         }
     }
     // Remove the inode number from the superblock
-    if ((ERR = readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock)) < 0 ) {
+    if ((ERR = readBlock(mounted->diskNum, parent, superblock)) < 0 ) {
         return ERR;
     }
     int i = FIRST_SUPBLOCK_INODE_LOC;
     while (superblock[i] != inode_num) i++;
 
     superblock[i] = EMPTY_TABLEVAL;
-    if ((ERR = writeBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock)) < 0 ) {
+    if ((ERR = writeBlock(mounted->diskNum, parent, superblock)) < 0 ) {
         return ERR;
     }
 

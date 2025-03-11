@@ -318,15 +318,12 @@ void testTfs_updateFile()
     assert(tfs_deleteFile(testFile) == 0);
     assert(tfs_readByte(testFile, &fileByte) != 0);
 
-    // TODO: Verify the disk blocks have been deleted too
-
 
     // Trying to delete the same file twice
     assert(tfs_deleteFile(testFile) != 0);
 
-    // Deleting all of the files on the disk
-
     // Deleting a file that doesn't exist
+    assert(tfs_deleteFile(14) != 0);
 
     // Writing to a deleted file
     assert(tfs_writeFile(testFile, "test", 5) != 0);
