@@ -55,6 +55,10 @@ Byte    Value
 2       Next Free Block
 3+      Zeros or junk data
 
+To ask TA: 
+things to ask TA:
+- if doing dir's says need absolute path, so /file ..?
+- should errors just return ..? need perror?
 
 
 remaining funcs:
