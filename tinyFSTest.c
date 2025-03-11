@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "tinyFS.h"
+#include "libTinyFS.h"
 
 void testTfs_mkfs();
 void testTfs_mount();

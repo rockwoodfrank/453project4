@@ -2,8 +2,11 @@ CC = gcc
 CFLAGS = -Wall -std=gnu99 -pedantic -g
 PROGS = tinyFSDemo
 TESTPROGS = libDiskTest basicDiskTest runBasicDiskTest basicTinyFSTest runBasicTinyFSTest tinyFSTest timeStampTest consistencyCheckTest basicDisk basicFS
-OBJS = tinyFSDemo.o tinyFS.o libDisk.o
-DISKOBJS = disk0.dsk disk1.dsk disk2.dsk disk3.dsk
+OBJS = tinyFSDemo.o tinyFS.o libDisk.o libTinyFS_helpers.o
+DISKOBJS = disk0.dsk disk1.dsk disk2.dsk disk3.dsk demo.dsk
+TFSHEADERS = libTinyFS.h tinyFS.h tinyFS_errno.h libTinyFS_helpers.h
+
+all: $(PROGS)
 
 $(PROGS): $(OBJS)
 	$(CC) $(CFLAGS) -o $(PROGS) $(OBJS)
@@ -15,14 +18,20 @@ clean:
 	rm -rf $(DISKOBJS)
 	#rm -rf testFiles/*.dsk
 
+rmdemodisk: 
+	rm -rf demo.dsk
+
 declutter: 
 	rm -f $(OBJS) *~ TAGS
 	rm -f *.o
 
-tinyFsDemo.o: tinyFSDemo.c libTinyFS.h tinyFS.h tinyFS_errno.h tinyFS.o
+tinyFsDemo.o: tinyFSDemo.c $(TFSHEADERS) tinyFS.o 
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-tinyFS.o: tinyFS.c tinyFS.h libDisk.h libDisk.o tinyFS_errno.h
+tinyFS.o: tinyFS.c $(TFSHEADERS) libDisk.o libTinyFS_helpers.o
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+libTinyFS_helpers.o: libTinyFS_helpers.c $(TFSHEADERS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 libDisk.o: libDisk.c libDisk.h tinyFS.h tinyFS_errno.h
@@ -46,17 +55,17 @@ runBasicTinyFSTest: basicTinyFSTest
 	./basicFS
 	echo \> basicTinyFSTestPassed.
 
-libDiskTest: libDisk.h libDisk.o libDiskTest.c
+libDiskTest: libDisk.h libDisk.o libDiskTest.c 
 	$(CC) $(CFLAGS) -o libDiskTest libDisk.o libDiskTest.c
 
-tinyFSTest: tinyFS.h libDisk.h tinyFS.o libDisk.o tinyFSTest.c
-	$(CC) $(CFLAGS) -o tinyFSTest tinyFS.o libDisk.o tinyFSTest.c
+tinyFSTest: tinyFS.h libDisk.h tinyFS.o libDisk.o tinyFSTest.c libTinyFS_helpers.o
+	$(CC) $(CFLAGS) -o tinyFSTest tinyFS.o libDisk.o tinyFSTest.c libTinyFS_helpers.o
 
-timeStampTest: tinyFS.h libDisk.h tinyFS.o libDisk.o timeStampTest.c
-	$(CC) $(CFLAGS) -o timeStampTest tinyFS.o libDisk.o timeStampTest.c
+timeStampTest: tinyFS.h libDisk.h tinyFS.o libDisk.o timeStampTest.c libTinyFS_helpers.o
+	$(CC) $(CFLAGS) -o timeStampTest tinyFS.o libDisk.o timeStampTest.c libTinyFS_helpers.o
 
-consistencyCheckTest: tinyFS.h libDisk.h tinyFS.o libDisk.o consistencyCheckTest.c
-	$(CC) $(CFLAGS) -o consistencyCheckTest tinyFS.o libDisk.o consistencyCheckTest.c
+consistencyCheckTest: tinyFS.h libDisk.h tinyFS.o libDisk.o consistencyCheckTest.c libTinyFS_helpers.o
+	$(CC) $(CFLAGS) -o consistencyCheckTest tinyFS.o libDisk.o consistencyCheckTest.c libTinyFS_helpers.o
 
 unitTests: libDiskTest tinyFSTest timeStampTest consistencyCheckTest
 	./libDiskTest

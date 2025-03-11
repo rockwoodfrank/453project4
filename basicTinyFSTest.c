@@ -7,7 +7,7 @@
  #include <string.h>
  
  #include "tinyFS.h"
- //#include "libTinyFS.h"
+ #include "libTinyFS.h"
  // NOTE: in the original file this was "TinyFS_errno.h" (note the capital T.)
  #include "tinyFS_errno.h"
  
