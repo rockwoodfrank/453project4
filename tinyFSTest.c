@@ -175,8 +175,8 @@ void testTfs_updateFile()
 
     for (int i = 1; i < ((diskSize / BLOCKSIZE)); i++)
     {
-        char fileName[8];
-        snprintf(fileName, 8, "/fi%d", i);
+        char fileName[9];
+        snprintf(fileName, 9, "/fi%hd", i);
         assert(tfs_openFile(fileName) >= 0);
     }
 
