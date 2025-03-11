@@ -22,6 +22,8 @@ int     _print_directory_contents(int block, int tabs);
 int     _write_long(uint8_t* block, unsigned long longVal, char loc);
 int     _remove_inode_and_blocks(char inode, char parent);
 int     _fetch_parent(char inode_num);
+int     _find_path_start(char *path);
+int     _check_block_con(int diskNum, int block, int block_type, char* blocks_checked);
 
 /* error status holder */
 int ERR = 0;
@@ -164,10 +166,10 @@ fileDescriptor tfs_openFile(char *name) {
     }
 
     /* make sure the given dirName is not null */
-    if (name == NULL || name[0] != '/') {
+    if (name == NULL) {
         return ERR_INVALID_INPUT;  // ERR: invalid input error
     }
-    
+
     int parent = SUPERBLOCK_DISKLOC;
     char cur_path[FILENAME_LENGTH + 1];
 
@@ -968,7 +970,7 @@ int _navigate_to_dir(char* dirName, char* last_path_h, int* current_h, int* pare
     }
 
     bool dir_found_flag = false; 
-    int path_index = 1;
+    int path_index = _find_path_start(dirName);
     char cur_path[FILENAME_LENGTH + 1]; 
     char inode_buffer[BLOCKSIZE];
 
@@ -1280,4 +1282,14 @@ int _write_long(uint8_t* block, unsigned long longVal, char loc) {
         block[loc+i] = longConverted[i];
     }
     return 0;
+}
+
+// Formatting the path name
+int _find_path_start(char *path)
+{
+    if (path[0] != '/')
+    {
+        return 0;
+    }
+    return 1;
 }
