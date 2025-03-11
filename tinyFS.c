@@ -719,7 +719,6 @@ int tfs_removeAll(char* dirName) {
         }
     }
 
-
     /* re-grab the block of the directory and remove every item in it */
     char current_inode[BLOCKSIZE];
     if ((ERR = readBlock(mounted->diskNum, current, current_inode)) < 0) {

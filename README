@@ -2,10 +2,17 @@ FEATURES: BCEH
 
 Rockwood Frank, Quincy Collinsworth, Sydney Lynch
 
-OUR IMPLEMENTAION:
+Notes if Issues with auto-grader:
+- tinyFS_errno.h
+	the basicTinyFSTest.c given to use in class uses "TinyFS_errno.h" but the specs use "tinyFS_errno.h"; we are using tinyFS_errno.h (lower case t)
+- tfs_openFile() & direcotry functions
+	the instructions say to use the absolute path for files and directories, which we took to mean that paths should include the "/" before it. But, the given tests do not use "/" so we have implemented it to accomodate either
+- 
+
+alter modified time when rename, 
 
 
-STORAGE STRUCTURES:
+Here is the outline to our storage structures:
 
 Superblock:
 Byte    Value
@@ -59,7 +66,6 @@ Byte    Value
 3+      Zeros or junk data
 
 Questions:
-
 
 
 - if doing dir's says need absolute path, so /file ..? (match the test, specify in readme)
