@@ -8,23 +8,27 @@
 #include "tinyFS.h"
 
 void make_good_disk();
-void main()
+int main()
 {
     make_good_disk();
     // Mounting a good system that's full of files
     assert(tfs_mount("testFiles/normalDisk.dsk") == TFS_SUCCESS);
 
     assert(tfs_readdir() == 0);
+    assert(tfs_removeAll("/") == 0);
 
     tfs_unmount();
+    make_good_disk();
+    assert(tfs_mount("testFiles/normalDisk.dsk") == TFS_SUCCESS);
 
     // Tests for data blocks not on free list or allocated to an inode
     assert(tfs_mount("testFiles/weirdBlocks.dsk") != TFS_SUCCESS);
     // Tests for blocks that have been corrupted
     assert(tfs_mount("testFiles/lessCorrupted.dsk") != TFS_SUCCESS);
-
+    printf("here\n");
     // Tests where a block pointed to by an inode isn't a data block
     assert(tfs_mount("testFiles/weirdPointer.dsk") != TFS_SUCCESS);
+    return 0;
 }
 
 void make_good_disk()
