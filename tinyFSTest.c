@@ -132,22 +132,17 @@ void testTfs_mount()
     assert(tfs_unmount() == ERR_NO_DISK_MOUNTED);
 
     // disks that don't exist
-    // TODO: replace with actual error code
-    assert(tfs_mount("testFiles/notAFile.dsk") == ERR_DISK_NOT_FOUND);
+    assert(tfs_mount("testFiles/notAFile.dsk") == ERR_DISK_FILE_NOT_FOUND);
 
     // remounting, making sure that doesn't break anything
     assert(tfs_mount("testFiles/test.dsk") == 0);
     assert(tfs_mount("testFiles/test2.dsk") == 0);
-    // TODO: verify that test2 was written to and not test
 
     assert(tfs_unmount() == 0);
     // files of the incorrect type
-    // TODO: replace with actual error code
     assert(tfs_mount("testFiles/notADisk.txt") == ERR_BAD_DISK);
-    assert(tfs_mount("testFiles/notADisk.dsk") == ERR_DISK_NOT_FOUND);
+    assert(tfs_mount("testFiles/notADisk.dsk") == ERR_DISK_FILE_NOT_FOUND);
     
-
-    // TODO: The specific case when a file isn't a disk: make sure a memory leak doesn't occur
 }
 
 void testTfs_updateFile()
