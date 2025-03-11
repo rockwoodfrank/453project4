@@ -104,8 +104,10 @@ int tfs_mount(char* diskname) {
     }
     int num_blocks = file_stat.st_size / BLOCKSIZE;
     char* blocks_checked = (char*) malloc(num_blocks);
+    if (blocks_checked == NULL) {
+        return SYS_ERR_MALLOC;
+    }
     memset(blocks_checked, 0, num_blocks);
-
 
     /* Returning an ERRor if the file isn't formatted properly */
     if (_check_block_con(diskNum, SUPERBLOCK_DISKLOC, SUPERBLOCK, blocks_checked) < 0) {
@@ -118,6 +120,7 @@ int tfs_mount(char* diskname) {
             return ERR_BAD_DISK;
         }
     }
+    free(blocks_checked);
 
     /* if there currently is a disk file mounted, unmount it */
     if (mounted != NULL) {
@@ -133,7 +136,6 @@ int tfs_mount(char* diskname) {
 
     /* reset the fd table */
     memset(fd_table, 0, FD_TABLESIZE);
-    // TODO: run closedisk
     return TFS_SUCCESS;
 }
 
@@ -149,7 +151,7 @@ int tfs_unmount() {
     free(mounted);
     mounted = NULL;
 
-    //TODO: close any open files in the FD table
+    memset(fd_table, 0, FD_TABLESIZE);
 
     /* TODO: Make sure the file is unmounted "cleanly" */
     return returnVal;
@@ -189,6 +191,8 @@ fileDescriptor tfs_openFile(char *name) {
         if ((ERR = writeBlock(mounted->diskNum, parent, inode)) < 0) {
             return ERR;
         }
+
+        free(inode);
         return fd_table_index;
     } 
 
@@ -341,7 +345,6 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
 
         /* update the file inode with the data block */
         inode[FILE_DATA_LOC + i] = temp_addr;
-        //SYDNOTE: moved this into the for loop, is it supposed to be out of it?
         if ((ERR = writeBlock(mounted->diskNum, fd_table[FD], inode)) < 0) {
             return ERR;
         }
@@ -772,7 +775,7 @@ int tfs_removeAll(char* dirName) {
                 if ((ERR = tfs_removeAll(dir_path)) < 0) { 
                     return ERR;
                 }
-                free(dir_path); // TODO: test that this works
+                free(dir_path);
             }
             current_inode[i] = 0x0;
             if ((ERR = writeBlock(mounted->diskNum, current, current_inode)) < 0) {

@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -std=gnu99 -pedantic -g
 PROGS = tinyFSDemo
-TESTPROGS = libDiskTest basicDiskTest runBasicDiskTest basicTinyFSTest runBasicTinyFSTest tinyFSTest
+TESTPROGS = libDiskTest basicDiskTest runBasicDiskTest basicTinyFSTest runBasicTinyFSTest tinyFSTest timeStampTest consistencyCheckTest basicDisk basicFS
 OBJS = tinyFSDemo.o tinyFS.o libDisk.o
 DISKOBJS = disk0.dsk disk1.dsk disk2.dsk disk3.dsk
 

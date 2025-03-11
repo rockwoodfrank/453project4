@@ -1,20 +1,9 @@
+FEATURES: BCEH
+
 Rockwood Frank, Quincy Collinsworth, Sydney Lynch
 
-Instructions:
-run "make test" run all tests on the code. Shouldn't pass right now.
+OUR IMPLEMENTAION:
 
-
-Notes to Programmers:
-A global structure called "mounted" now exists.
-An all-in-one testing regime was added but needs to be completed. You can help with that if you want.
-Give Rocky a list of things you want to test for if you feel like it. I will be trying to break your code in every possible way. Be prepared.
-TODO: Add valgrind to tests?
-
-Questions:
-- ask what is expected from us out of the manual error stuff
-> https://www.thegeekstuff.com/2010/10/linux-error-codes/
-- What should the behavior be when trying to mount a disk that fails? Do we keep the current one or unmount it?
-- What to do if mkfs fails? do we remove the '.dsk' file?
 
 STORAGE STRUCTURES:
 
@@ -26,25 +15,39 @@ Byte    Value
 3       Empty
 4+      inode addresses
 
-Inode:
+Inode (if file):
 Byte    Value
 0       2
 1       0x44
-2       Blank
+2       Empty
 3       Empty
-4-12    File name
-13-16   File size
-17-20   File Offset
-21-28 	File Creation Time
-29-36	File Modification Time
-37-42	File Access Time
-43+ 	Direct Blocks to Data
+4		File Type Flag (f)
+5-13    File name
+14-17   File size
+18-21   File Offset
+22-29 	File Creation Time
+30-37	File Modification Time
+38-45	File Access Time
+46+ 	Direct Blocks to Data
+
+Inode (if directory):
+Byte    Value
+0       2
+1       0x44
+2       Empty
+3       Empty
+4		File Type Flag (d)
+5-13    Dir name
+14-21 	Dir Creation Time
+22-29	Dir Modification Time
+30-37	Dir Access Time
+38+ 	Direct Blocks to Inodes
 
 File Extent:
 Byte    Value
 0       3
 1       0x44
-2       Parent Block?
+2       Empty
 3       Empty
 4+      Data
 
@@ -55,17 +58,10 @@ Byte    Value
 2       Next Free Block
 3+      Zeros or junk data
 
-To ask TA: 
-things to ask TA:
+Questions:
+- ask what is expected from us out of the manual error stuff
+- What should the behavior be when trying to mount a disk that fails? Do we keep the current one or unmount it?
+- What to do if mkfs fails? do we remove the '.dsk' file?
 - if doing dir's says need absolute path, so /file ..?
 - should errors just return ..? need perror?
 - ask about headers  //#include "libTinyFS.h"
-
-remaining funcs:
-- edit openFile to work with directories
-- tfs_readdir to list filenames and directories
-- edit funcs to add timestamps and then tfs_readFileInfo
-- edit things to match consistency checks
-
-For Quincy: 
-gcc tinyFS.c libDisk.c -g -Wall -pedantic -std=gnu99 -o testSydneyDisk

@@ -91,14 +91,13 @@
         #define DIR_MODIFIEDTIME_LOC   (DIR_CREATEDTIME_LOC + 8)
         #define DIR_ACCESSTIME_LOC     (DIR_MODIFIEDTIME_LOC + 8)
 
-    #define DIR_DATA_LOC        (DIR_ACCESSTIME_LOC + 8)   // 14
-
+    #define DIR_DATA_LOC        (DIR_ACCESSTIME_LOC + 8)   
 
     /* how many data blocks a file inode can hold */
-    #define MAX_FILE_DATA       (BLOCKSIZE - FILE_DATA_LOC)             // 234
+    #define MAX_FILE_DATA       (BLOCKSIZE - FILE_DATA_LOC)
 
     /* how many inode blocks a directory inode can hold */
-    #define MAX_DIR_INODES      (BLOCKSIZE - DIR_DATA_LOC)              // 242
+    #define MAX_DIR_INODES      (BLOCKSIZE - DIR_DATA_LOC) 
 
 /* ^ MACROS FOR INODE BLOCK ^ */
 
@@ -169,7 +168,18 @@ int tfs_readByte(fileDescriptor FD, char *buffer);
 success/error codes.*/
 int tfs_seek(fileDescriptor FD, int offset);
 
+
 /* EXTRA FEATURES */
+
+/* (B) directory listing and file renaming */
+
+/* renames a file. New name should be passed in. File has to be open. */
+int tfs_rename(fileDescriptor FD, char* newName);
+
+/* lists all the files and directories on the disk, print the list to stdout */
+int tfs_readdir();
+
+/* (C) hierarchical directories */
 
 /* creates a directory, name could contain a “/”-delimited path) */
 int tfs_createDir(char* dirName);
@@ -181,17 +191,8 @@ int tfs_removeDir(char* dirName);
 Special “/” token may be used to indicate root dir. */
 int tfs_removeAll(char* dirName);
 
-/* (B) directory listing and file renaming */
+/* (E) timestamps */
 
-/* renames a file. New name should be passed in. File has to be open. */
-int tfs_rename(fileDescriptor FD, char* newName);
-
-/* lists all the files and directories on the disk, print the list to stdout */
-int tfs_readdir();
-
-
-
-// Timestamps
 // Implement creation, modification, and access timestamps for each file.
 // tfs_readFileInfo(fileDescriptor FD) returens the file's timestamps
 int tfs_readFileInfo(fileDescriptor FD);
