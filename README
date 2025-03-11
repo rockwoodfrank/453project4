@@ -60,8 +60,6 @@ Byte    Value
 
 Questions:
 - ask what is expected from us out of the manual error stuff
-- What should the behavior be when trying to mount a disk that fails? Do we keep the current one or unmount it?
-- What to do if mkfs fails? do we remove the '.dsk' file?
 - if doing dir's says need absolute path, so /file ..?
 - should errors just return ..? need perror?
 - ask about headers  //#include "libTinyFS.h"

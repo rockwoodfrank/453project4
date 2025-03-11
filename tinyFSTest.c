@@ -154,7 +154,7 @@ void testTfs_updateFile()
     assert(tfs_mount(diskName) == 0);
 
     // Testing making a new file
-    fileDescriptor fileNum = tfs_openFile("/test");
+    fileDescriptor fileNum = tfs_openFile("test");
     assert(fileNum >= 0);
     char *inode = (char*) verify_contents(diskName, sizeof(char) * BLOCKSIZE * 1, sizeof(char) *BLOCKSIZE);
     assert(inode[BLOCK_TYPE_LOC] == INODE);
