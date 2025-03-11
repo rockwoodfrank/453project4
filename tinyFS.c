@@ -19,7 +19,7 @@ int     _free_block(char block_addr);
 int     _parse_path(char* path, int index, char* buffer);
 int     _navigate_to_dir(char* dirName, char* last_path_h, int* current_h, int* parent_h, int searching_for); 
 int     _print_directory_contents(int block, int tabs);
-int     _write_long(char* block, unsigned long longVal, char loc);
+int     _write_long(uint8_t* block, unsigned long longVal, char loc);
 int     _remove_inode_and_blocks(char inode, char parent);
 
 /* error status holder */
@@ -259,7 +259,7 @@ fileDescriptor tfs_openFile(char *name) {
     if (dir_found_flag) {
         int fd_table_index = _update_fd_table_index();
         fd_table[fd_table_index] = parent;
-        char *inode = malloc(BLOCKSIZE * sizeof(char));
+        uint8_t *inode = malloc(BLOCKSIZE * sizeof(char));
         if ((ERR = readBlock(mounted->diskNum, parent, inode)) < 0) {
             return ERR;
         }
@@ -285,7 +285,7 @@ fileDescriptor tfs_openFile(char *name) {
     fd_table[fd_table_index] = next_free_block;
 
     /* put name of file on the inode and information bytes */
-    char inode_buffer[BLOCKSIZE];
+    uint8_t inode_buffer[BLOCKSIZE];
     memset(inode_buffer, 0, BLOCKSIZE);
     inode_buffer[BLOCK_TYPE_LOC] = INODE;
     inode_buffer[SAFETY_BYTE_LOC] = SAFETY_HEX;
@@ -357,7 +357,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     }
 
     /* Grab the block's inode */
-    char inode[BLOCKSIZE]; 
+    uint8_t inode[BLOCKSIZE]; 
     if ((ERR = readBlock(mounted->diskNum, fd_table[FD], inode)) < 0) {
         return ERR;
     }
@@ -462,15 +462,16 @@ int tfs_readByte(fileDescriptor FD, char* buffer) {
     }
 
     /* grab the inode block */
-    char inode[BLOCKSIZE]; 
+    uint8_t inode[BLOCKSIZE]; 
     if ((ERR = readBlock(mounted->diskNum, fd_table[FD], inode)) < 0) {
         return ERR;
     }
+
     _write_long(inode, time(NULL), FILE_ACCESSTIME_LOC);
 
     /* get file offset from inode block and convert to block & block offset */
     int i = FILE_OFFSET_LOC;
-    int offset = (inode[i] << 24) + (inode[i + 1] << 16) + (inode[i + 2] << 8) + inode[i + 3];
+    uint32_t offset = (inode[i] << 24) + (inode[i + 1] << 16) + (inode[i + 2] << 8) + inode[i + 3];
     int block_num = offset / MAX_DATA_SPACE;
     int block_offset = offset % MAX_DATA_SPACE;
 
@@ -479,6 +480,7 @@ int tfs_readByte(fileDescriptor FD, char* buffer) {
 
     /* make sure that the offset is not outside of the file */
     if(offset > size) {
+
         return ERR_FILE_PNTR_OUT_OF_BOUNDS;
     }
 
@@ -665,7 +667,7 @@ int tfs_createDir(char* dirName) {
     }
 
     /* set up the new inode: put name of file on the inode and information bytes */
-    char inode_buffer[BLOCKSIZE];
+    uint8_t inode_buffer[BLOCKSIZE];
     memset(inode_buffer, 0, BLOCKSIZE);
     inode_buffer[BLOCK_TYPE_LOC] = INODE;
     inode_buffer[SAFETY_BYTE_LOC] = SAFETY_HEX;
@@ -1245,65 +1247,10 @@ int _fetch_parent(char inode_num) {
 }
 
 // Writing longs to a block, specifically for timestamps
-int _write_long(char* block, unsigned long longVal, char loc) { 
+int _write_long(uint8_t* block, unsigned long longVal, char loc) { 
     char *longConverted = (char *)&longVal;
     for (int i = 0; i < 8; i ++) {
         block[loc+i] = longConverted[i];
     }
     return 0;
 }
-
-/* Uncomment and run this block if you want to test */
-// int main(int argc, char* argv[]) {
-        
-//     tfs_mkfs("demo.dsk", 8192);    
-
-//     int status;
-//     status = tfs_mount("demo.dsk");
-//     if(status < 0) {
-//         printf("Mount error (%d)\n", status);
-//         exit(EXIT_FAILURE);
-//     }
-
-
-//     /* Creating some files in the root directory */
-//     int sydney = tfs_openFile("/Sydney");
-//     if(sydney < 0) {
-//         printf("Checking sydney status %d\n", sydney);
-//     }
-//     int rocky = tfs_openFile("/Rocky");
-//     int quincy = tfs_openFile("/quincy");
-
-//     /* now lets create some directories */
-//     status = tfs_createDir("/humor");
-//     if(status < 0) {
-//         printf("create dir error (%d)\n", status);
-//         exit(EXIT_FAILURE);
-//     }
-
-//     status = tfs_createDir("/thomas");
-//     if(status < 0) {
-//         printf("create dir error (%d)\n", status);
-//         exit(EXIT_FAILURE);
-//     }
-
-//     status = tfs_openFile("/thomas/waffles");
-//     if(status < 0) {
-//         printf("open file error (%d)\n", status);
-//         exit(EXIT_FAILURE);
-//     }
-
-//     status = tfs_openFile("/thomas/cake");
-//     if(status < 0) {
-//         printf("open file error (%d)\n", status);
-//         exit(EXIT_FAILURE);
-//     }
-
-//     status = tfs_openFile("/thomas/pie");
-//     if(status < 0) {
-//         printf("open file error (%d)\n", status);
-//         exit(EXIT_FAILURE);
-//     }
-
-//     return 0;
-// }
