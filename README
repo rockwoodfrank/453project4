@@ -6,7 +6,7 @@ Notes if Issues with auto-grader:
 - tinyFS_errno.h
 	the basicTinyFSTest.c given to use in class uses "TinyFS_errno.h" but the specs use "tinyFS_errno.h"; we are using tinyFS_errno.h (lower case t)
 - tfs_openFile() & direcotry functions
-	the instructions say to use the absolute path for files and directories, which we took to mean that paths should include the "/" before it. But, the given tests do not use "/" so we have implemented it to accomodate either
+	the instructions say to use the absolute path for files and directories, which we took to mean that paths should include the "/" before it. But, the given tests do not use "/" so we have implemented it to accomodate either. For example, tfs_openFile("test"); and tfs_openFile("/test"); and both work
 - 
 
 alter modified time when rename, 

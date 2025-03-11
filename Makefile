@@ -1,9 +1,15 @@
 CC = gcc
+
 CFLAGS = -Wall -std=gnu99 -pedantic -g
+
 PROGS = tinyFSDemo
+
 TESTPROGS = libDiskTest basicDiskTest runBasicDiskTest basicTinyFSTest runBasicTinyFSTest tinyFSTest timeStampTest consistencyCheckTest basicDisk basicFS
+
 OBJS =  tinyFS.o libDisk.o libTinyFS_helpers.o
+
 DISKOBJS = disk0.dsk disk1.dsk disk2.dsk disk3.dsk demo.dsk
+
 TFSHEADERS = libTinyFS.h tinyFS.h tinyFS_errno.h libTinyFS_helpers.h
 
 all: tinyFSDemo
@@ -13,14 +19,9 @@ clean:
 	rm -f $(OBJS) *~ TAGS
 	rm -rf $(TESTPROGS)
 	rm -rf $(DISKOBJS)
-	#rm -rf testFiles/*.dsk
 
 rmdemodisk: 
 	rm -rf demo.dsk
-
-declutter: 
-	rm -f $(OBJS) *~ TAGS
-	rm -f *.o
 
 tinyFSDemo: tinyFSDemo.c $(TFSHEADERS) tinyFS.o libDisk.o libTinyFS_helpers.o
 	$(CC) $(CFLAGS) -o tinyFSDemo tinyFSDemo.c $(TFSHEADERS) tinyFS.o libDisk.o libTinyFS_helpers.o
@@ -34,7 +35,11 @@ libTinyFS_helpers.o: libTinyFS_helpers.c $(TFSHEADERS)
 libDisk.o: libDisk.c libDisk.h tinyFS.h tinyFS_errno.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-# Testing
+tarball: clean
+	tar -czvf project4.tar.gz ./
+
+# TESTING
+
 basicDiskTest: $(OBJS) basicDiskTest.c
 	$(CC) $(CFLAGS) -o basicDisk $(OBJS) basicDiskTest.c 
 
@@ -73,6 +78,3 @@ unitTests: libDiskTest tinyFSTest timeStampTest consistencyCheckTest
 # Add any commands to run tests here, then we have a single command to run all tests.
 test: clean unitTests runBasicDiskTest runBasicTinyFSTest
 	$(info All tests passed!)
-
-tarball: clean
-	tar -czvf project4.tar.gz ./

@@ -77,6 +77,12 @@ int tfs_mount(char* diskname) {
     if (diskname == NULL) {
         return ERR_INVALID_INPUT;
     }
+
+    /* if there currently is a disk file mounted, unmount it */
+    if (mounted != NULL) {
+        tfs_unmount();
+    }
+
     /* open the given disk */
     int diskNum = openDisk(diskname, 0);
     if (diskNum < 0) {
@@ -111,11 +117,6 @@ int tfs_mount(char* diskname) {
         }
     }
     free(blocks_checked);
-
-    /* if there currently is a disk file mounted, unmount it */
-    if (mounted != NULL) {
-        tfs_unmount();
-    }
 
     /* Initialize a new tinyFS object */
     if ((mounted = (tinyFS *) malloc(sizeof(tinyFS))) == NULL) {
