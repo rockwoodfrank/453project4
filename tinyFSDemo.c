@@ -153,7 +153,7 @@ int main(int argc, char* argv[]) {
         char steakBlog[] = "Eat some yummy steak";
         status = tfs_writeFile(steak, steakBlog, sizeof(steakBlog));
 
-        printf("\n\nFile data for the file \"steak\"");
+        printf("\n\nFile data for the file \"steak\"\n");
         tfs_readFileInfo(steak);
 
         int sausage = tfs_openFile("/foods/savory/sausage");
@@ -186,13 +186,13 @@ int main(int argc, char* argv[]) {
             exit(EXIT_FAILURE);
         }
 
-        printf("\n\nFile data for the file \"hotdog\"");
+        printf("\n\nFile data for the file \"hotdog\"\n");
         tfs_readFileInfo(sausage);
 
         printf("\n\nHere are the disk contents after we have deleted some stuff\n");
         tfs_readdir();
 
-        printf("\n\nEnd of Demo. Remeber to delete the disk before you rerun !!\n");
+        printf("\n\nEnd of Demo. Remeber to delete the disk before you rerun !! You can run \"make rmdemodisk\" to do this\n");
 
     }
 
