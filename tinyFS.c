@@ -1201,6 +1201,43 @@ int _remove_inode_and_blocks(uint8_t inode_num, uint8_t parent)
     return TFS_SUCCESS;
 }
 
+/* given an inode, finds the parent */
+int _fetch_parent(uint8_t inode_num) {
+
+    struct stat file_stat;
+    if (fstat(diskNum, &file_stat) == -1) {
+        return SYS_ERR_FSTAT;
+    }  
+
+    int num_blocks = file_stat.st_size / BLOCKSIZE; 
+
+    uint8_t buffer[BLOCKSIZE];
+    for(int i=0; i < num_blocks; i++) {
+
+        if((ERR = readBlock(mounted->diskNum, i, buffer)) < 0) {
+            return ERR;
+        }
+
+        if(i == SUPERBLOCK_DISKLOC) {
+            for(int j = FIRST_SUPBLOCK_INODE_LOC; j < FIRST_SUPBLOCK_INODE_LOC + MAX_SUPBLOCK_INODES) {
+                if(buffer[j] == inode_num) {
+                    return SUPERBLOCK_DISKLOC;
+                }
+            }
+        } else {
+            if(buffer[BLOCK_TYPE_LOC] == INODE && buffer[FILE_TYPE_FLAG_LOC] == FILE_TYPE_DIR) {
+                for(int j = DIR_DATA_LOC; j < DIR_DATA_LOC + MAX_DIR_INODES; j++) {
+                    if(buffer[j] == inode_num) {
+                        return i;
+                    }
+                }
+            }
+        }
+    }
+
+    return ERR_BAD_DISK;
+}
+
 // Writing longs to a block, specifically for timestamps
 int _write_long(char* block, unsigned long longVal, char loc) { 
     char *longConverted = (char *)&longVal;
