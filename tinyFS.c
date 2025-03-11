@@ -1,3 +1,4 @@
+#include "libTinyFS.h"
 #include "tinyFS.h"
 
 tinyFS* mounted = NULL;
