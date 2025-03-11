@@ -1273,15 +1273,11 @@ int _write_long(uint8_t* block, unsigned long longVal, char loc) {
 }
 
 // Formatting the path name
-int _format_path(char **path)
+int _find_path_start(char *path)
 {
-    if (*path[0] != '/')
+    if (path[0] != '/')
     {
-        char *newName = malloc(sizeof(char) * strlen(*path) + 1);
-        newName[0] = '/';
-        strcat(newName, *path);
-        *path = newName;
-        return TFS_SUCCESS;
+        return 0;
     }
-    return TFS_SUCCESS;
+    return 1;
 }
