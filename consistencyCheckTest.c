@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "tinyFS.h"
+#include "libTinyFS.h"
 
 void make_good_disk();
 int main()

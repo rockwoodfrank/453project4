@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "tinyFS.h"
+#include "libTinyFS.h"
 
 int main()
 {
