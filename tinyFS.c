@@ -374,7 +374,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     // Resetting the direct blocks so the data is "lost" since nothing is pointing to them
     // Counter for clearing
     i = 0;
-    char dir_block = inode[FILE_DATA_LOC + i++];
+    uint8_t dir_block = inode[FILE_DATA_LOC + i++];
     while(dir_block != 0x0) {
         // Allocating each block as "free" and adding them to the linked list
         if ((ERR = _free_block(dir_block)) < 0) {
@@ -486,7 +486,6 @@ int tfs_readByte(fileDescriptor FD, char* buffer) {
 
     /* make sure that the offset is not outside of the file */
     if(offset > size) {
-
         return ERR_FILE_PNTR_OUT_OF_BOUNDS;
     }
 
@@ -524,7 +523,7 @@ int tfs_seek(fileDescriptor FD, int offset) {
     }
 
     /* grab the inode */
-    char inode[BLOCKSIZE]; 
+    uint8_t inode[BLOCKSIZE]; 
     if ((ERR = readBlock(mounted->diskNum, fd_table[FD], inode)) < 0) {
         return ERR;
     }

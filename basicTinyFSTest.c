@@ -89,7 +89,8 @@
   *  * If we can't read from it, it presumably means the file was empty.
   *   * If the size is 0 (all new files are sized 0) then any "readByte()" should fail, so 
   *    * it's a new file and empty */
-   if (tfs_readByte (aFD, &readBuffer) < 0)
+  int e = tfs_readByte (aFD, &readBuffer);
+   if (e < 0)
 	 {
 	   /* if readByte() fails, there was no afile, so we write to it */
 	   if (tfs_writeFile (aFD, afileContent, afileSize) < 0)
