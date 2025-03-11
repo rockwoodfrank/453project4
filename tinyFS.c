@@ -82,87 +82,6 @@ int tfs_mkfs(char *filename, int nBytes) {
     return TFS_SUCCESS;
 }
 
-int _check_block_con(int diskNum, int block, int block_type, char* blocks_checked) {
-    blocks_checked[block] = 1;
-
-    char buffer[BLOCKSIZE];
-    if ((ERR = readBlock(diskNum, block, buffer)) < 0) {
-        return ERR;
-    }
-
-    char byte0 = buffer[BLOCK_TYPE_LOC];
-    char byte1 = buffer[SAFETY_BYTE_LOC];
-    char byte2 = buffer[FREE_PTR_LOC];
-    char byte3 = buffer[EMPTY_BYTE_LOC];
-    blocks_checked[block] = 1;
-    if (block_type == SUPERBLOCK) {
-        /* check the first four bytes */
-        if (byte0 != SUPERBLOCK || byte1 != SAFETY_HEX || byte3 != EMPTY_TABLEVAL) {
-            return ERR_BAD_DISK;
-        }
-
-        if (byte2 != 0) {
-            if ((ERR = _check_block_con(diskNum, byte2, FREE, blocks_checked) < 0)) {
-                return ERR;
-            }
-        }
-
-        // check that everything in the inode is a data block / inode block (for dirs)
-        for (int i = FIRST_SUPBLOCK_INODE_LOC; i < MAX_SUPBLOCK_INODES + FIRST_SUPBLOCK_INODE_LOC; i++) {
-            if ((buffer[i] != 0) && (ERR = _check_block_con(diskNum, buffer[i], INODE, blocks_checked) < 0)) {
-                return ERR;
-            }
-        }
-    }
-    else if (block_type == INODE) {
-        /* check the first four bytes */
-        if (byte0 != INODE || byte1 != SAFETY_HEX || byte2 != EMPTY_TABLEVAL || byte3 != EMPTY_TABLEVAL) {
-            return ERR_BAD_DISK;
-        }
-        /* check that the file type flag is valid */
-        int file_type = buffer[FILE_TYPE_FLAG_LOC];
-        if (file_type != FILE_TYPE_DIR && file_type != FILE_TYPE_FILE) {
-            return ERR_BAD_DISK;
-        }
-     
-        /* check that the name is valid */
-        char* filename = buffer + FILE_NAME_LOC;
-        if (buffer[FILE_NAME_LOC + FILENAME_LENGTH] != 0 || strlen(filename) <= 0) {
-            return ERR_BAD_DISK;
-        }
-        // check that everything in the inode is a data block / inode block (for dirs)
-        int start_bound = file_type == FILE_TYPE_FILE ? FILE_DATA_LOC : DIR_DATA_LOC;
-        int range = file_type == FILE_TYPE_FILE ? MAX_FILE_DATA : MAX_DIR_INODES;
-        for (int i = start_bound; i < range; i++) {
-            if (file_type == FILE_TYPE_FILE && (buffer[i] !=0) && _check_block_con(diskNum, buffer[i], FILEEX, blocks_checked) != 0) {
-                return ERR_BAD_DISK;
-            } else if (file_type == FILE_TYPE_DIR && (buffer[i] != 0) && (_check_block_con(diskNum, buffer[i], INODE, blocks_checked) != 0)) {
-                return ERR_BAD_DISK;
-            }
-        }
-    }
-
-    else if (block_type == FILEEX) {
-        /* check the first four bytes */
-        if (byte0 != FILEEX || byte1 != SAFETY_HEX || byte2 != EMPTY_TABLEVAL || byte3 != EMPTY_TABLEVAL) {
-            return ERR_BAD_DISK;
-        }
-    }
-
-    else if (block_type == FREE) {
-        /* check the first four bytes */
-        if (byte0 != FREE || byte1 != SAFETY_HEX || byte3 != EMPTY_TABLEVAL) {
-            return ERR_BAD_DISK;
-        }
-
-        if (byte2 != 0) {
-            return _check_block_con(diskNum, byte2, FREE, blocks_checked);
-        }
-    }
-    
-    return TFS_SUCCESS;
-}
-
 int tfs_mount(char* diskname) {
     /* make sure diskname is valid */
     if (diskname == NULL) {
@@ -553,90 +472,88 @@ int tfs_seek(fileDescriptor FD, int offset) {
 
 /* ~ ADDITIONAL FEATURES ~ */
 
-/* (C) hierarchical directories */
+/* (B) directory listing and file renaming */
 
-// return dir_found_flag
-int _navigate_to_dir(char* dirName, char* last_path_h, int* current_h, int* parent_h, int searching_for) {
+/* renames a file. New name should be passed in. File has to be open. */
+int tfs_rename(fileDescriptor FD, char* newName) {
+    /* make sure there is a mounted tfs */
+    if (mounted == NULL) {
+        return ERR_NO_DISK_MOUNTED;
+    }
 
-    /* The superblock effectively behaves as the inode for the root */
-    int current = SUPERBLOCK_DISKLOC;
-    char current_block[BLOCKSIZE]; 
-    int parent = current;
-    if ((ERR = readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, current_block)) < 0) {
+    /* make sure there is an fd entry */
+    if(!fd_table[FD]) {
+        return ERR_INVALID_FD;
+    }
+
+    /* make sure the given inputs are valid */
+    if (newName == NULL || FD <= 0 || strlen(newName) > 8 || strlen(newName) < 1) {
+        return ERR_INVALID_INPUT; // ERR: invalid input
+    }
+
+    // TODO (?): check if newName already exists -> helper func fs
+
+    /* read in the inode corresponding to the given fd */
+    char inode[BLOCKSIZE]; 
+    if ((ERR = readBlock(mounted->diskNum, fd_table[FD], inode)) < 0) {
         return ERR;
     }
 
-    bool dir_found_flag = false; 
-    int path_index = 1;
-    char cur_path[FILENAME_LENGTH + 1]; 
-    char inode_buffer[BLOCKSIZE];
+    /* clear out the current inode's name and write in the new one */
+    char* filename = inode + FILE_NAME_LOC;
+    memset(filename, 0, FILENAME_LENGTH);
 
-    /* navigate through the directories until the end */
-    while (path_index != strlen(dirName) + 1) {
+    int z = 0;
+    while(newName[z] != '\000' && z < FILENAME_LENGTH) {
+        inode[FILE_NAME_LOC + z] = newName[z];
+        z++;
+    }
+    inode[FILE_NAME_LOC + z] = '\0';
 
-        /* parse thru dirName to get the next path name and make sure valid */
-        path_index = _parse_path(dirName, path_index, cur_path);
-        if (path_index < 0) {
-            return path_index;
-        }
+    /* update the inode */
+    if ((ERR = writeBlock(mounted->diskNum, fd_table[FD], inode)) < 0) {
+        return ERR;
+    }
 
-        /* look through the inode pointers in the parent_block for the next path */
-        dir_found_flag = false;
+    return TFS_SUCCESS;
+}
 
-        /* set the bounds for i based on wether in the superblock or a directory inode */
-        int start_bound = current == 0 ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
-        int range = current == 0 ? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
-        for(int i = start_bound; i < range + start_bound; i++) {
+/* lists all the files and directories on the disk, print the list to stdout */
+int tfs_readdir() {
+    /* make sure there is a mounted tfs */
+    if (mounted == NULL) {
+        return ERR_NO_DISK_MOUNTED;
+    }
 
-            /* skip over if we have an empty block, meaning no inode exists there */
-            if(!current_block[i]) {
-                continue;
-            }
+    char superblock[BLOCKSIZE];
+    if ((ERR = readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock)) < 0) {
+        return ERR;
+    }
 
-            /* Grab the name from the inode buffer */
-            memset(inode_buffer, 0, BLOCKSIZE);
-            if ((ERR = readBlock(mounted->diskNum, current_block[i], inode_buffer)) < 0) {
+    char inode[BLOCKSIZE];
+    for(int i = 0; i < MAX_SUPBLOCK_INODES; i++) {
+
+        if(superblock[i + FIRST_SUPBLOCK_INODE_LOC]) {
+
+            if ((ERR = readBlock(mounted->diskNum, superblock[i + FIRST_SUPBLOCK_INODE_LOC], inode)) < 0) {
                 return ERR;
             }
-            char* filename = inode_buffer + FILE_NAME_LOC; 
-
-            /* if found, reset that directory as the parent_block */
-            if(strcmp(cur_path, filename) == 0) {
-                dir_found_flag = true;
-
-                /* make sure the file found is of type 'directory' */
-                if (inode_buffer[FILE_TYPE_FLAG_LOC] == FILE_TYPE_FILE && (path_index != strlen(dirName) + 1 || searching_for == FILE_TYPE_DIR)) {
-                    return ERR_NOT_A_DIR;
-                }
-
-                /* get the inode of the found directory and store it as the parent */
-                parent = current;
-                current = current_block[i];
-                if ((ERR = readBlock(mounted->diskNum, current_block[i], current_block)) < 0) {                    
+    
+            if(inode[FILE_TYPE_FLAG_LOC] == FILE_TYPE_DIR) {
+                printf("%s\n", (inode + FILE_NAME_LOC));
+                if ((ERR = _print_directory_contents(superblock[i + FIRST_SUPBLOCK_INODE_LOC], 1)) < 0) {
                     return ERR;
                 }
-                
-                break;
+            } else {
+                printf("%s\n", (inode + FILE_NAME_LOC));
             }
+
         }
-
-        /* if not at the last path and unable to find the directory, error */
-        if (path_index != strlen(dirName) + 1 && !dir_found_flag) {
-            return ERR_DIR_NOT_FOUND; // ERR: not a directory, directory not found
-        }
-
     }
-
-    if (current_h != NULL) {
-        *current_h = current;
-    }
-    if (parent_h != NULL) {
-        *parent_h = parent;
-    }
-    strcpy(last_path_h, cur_path);
-
-    return dir_found_flag;
+    return TFS_SUCCESS;
 }
+
+/* (C) hierarchical directories */
 
 /* creates a directory, name could contain a “/”-delimited path) */
 int tfs_createDir(char* dirName) {
@@ -870,87 +787,6 @@ int tfs_removeAll(char* dirName) {
     return current == 0 ? 0 : tfs_removeDir(dirName);
 }
 
-/* (B) directory listing and file renaming */
-
-/* renames a file. New name should be passed in. File has to be open. */
-int tfs_rename(fileDescriptor FD, char* newName) {
-    /* make sure there is a mounted tfs */
-    if (mounted == NULL) {
-        return ERR_NO_DISK_MOUNTED;
-    }
-
-    /* make sure there is an fd entry */
-    if(!fd_table[FD]) {
-        return ERR_INVALID_FD;
-    }
-
-    /* make sure the given inputs are valid */
-    if (newName == NULL || FD <= 0 || strlen(newName) > 8 || strlen(newName) < 1) {
-        return ERR_INVALID_INPUT; // ERR: invalid input
-    }
-
-    // TODO (?): check if newName already exists -> helper func fs
-
-    /* read in the inode corresponding to the given fd */
-    char inode[BLOCKSIZE]; 
-    if ((ERR = readBlock(mounted->diskNum, fd_table[FD], inode)) < 0) {
-        return ERR;
-    }
-
-    /* clear out the current inode's name and write in the new one */
-    char* filename = inode + FILE_NAME_LOC;
-    memset(filename, 0, FILENAME_LENGTH);
-
-    int z = 0;
-    while(newName[z] != '\000' && z < FILENAME_LENGTH) {
-        inode[FILE_NAME_LOC + z] = newName[z];
-        z++;
-    }
-    inode[FILE_NAME_LOC + z] = '\0';
-
-    /* update the inode */
-    if ((ERR = writeBlock(mounted->diskNum, fd_table[FD], inode)) < 0) {
-        return ERR;
-    }
-
-    return TFS_SUCCESS;
-}
-
-/* lists all the files and directories on the disk, print the list to stdout */
-int tfs_readdir() {
-    /* make sure there is a mounted tfs */
-    if (mounted == NULL) {
-        return ERR_NO_DISK_MOUNTED;
-    }
-
-    char superblock[BLOCKSIZE];
-    if ((ERR = readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock)) < 0) {
-        return ERR;
-    }
-
-    char inode[BLOCKSIZE];
-    for(int i = 0; i < MAX_SUPBLOCK_INODES; i++) {
-
-        if(superblock[i + FIRST_SUPBLOCK_INODE_LOC]) {
-
-            if ((ERR = readBlock(mounted->diskNum, superblock[i + FIRST_SUPBLOCK_INODE_LOC], inode)) < 0) {
-                return ERR;
-            }
-    
-            if(inode[FILE_TYPE_FLAG_LOC] == FILE_TYPE_DIR) {
-                printf("%s\n", (inode + FILE_NAME_LOC));
-                if ((ERR = _print_directory_contents(superblock[i + FIRST_SUPBLOCK_INODE_LOC], 1)) < 0) {
-                    return ERR;
-                }
-            } else {
-                printf("%s\n", (inode + FILE_NAME_LOC));
-            }
-
-        }
-    }
-    return TFS_SUCCESS;
-}
-
 /* (E) timestamps */
 
 /* returns the file’s creation time or all info */
@@ -1002,6 +838,183 @@ int tfs_readFileInfo(fileDescriptor FD) {
 }
 
 /* ~ HELPER FUNCTIONS ~ */
+
+/* _check_block_con(): checks that the given block is of the given block_type 
+    + fills out the blocks_checked flag array for each block it checks
+    - errors if the block is not formatted as the type specified */
+/* if given the superblock, it will check each block in the tfs (if the tfs is correct) */
+int _check_block_con(int diskNum, int block, int block_type, char* blocks_checked) {
+    blocks_checked[block] = 1;
+
+    char buffer[BLOCKSIZE];
+    if ((ERR = readBlock(diskNum, block, buffer)) < 0) {
+        return ERR;
+    }
+
+    char byte0 = buffer[BLOCK_TYPE_LOC];
+    char byte1 = buffer[SAFETY_BYTE_LOC];
+    char byte2 = buffer[FREE_PTR_LOC];
+    char byte3 = buffer[EMPTY_BYTE_LOC];
+    blocks_checked[block] = 1;
+    if (block_type == SUPERBLOCK) {
+        /* check the first four bytes */
+        if (byte0 != SUPERBLOCK || byte1 != SAFETY_HEX || byte3 != EMPTY_TABLEVAL) {
+            return ERR_BAD_DISK;
+        }
+
+        if (byte2 != 0) {
+            if ((ERR = _check_block_con(diskNum, byte2, FREE, blocks_checked) < 0)) {
+                return ERR;
+            }
+        }
+
+        // check that everything in the inode is a data block / inode block (for dirs)
+        for (int i = FIRST_SUPBLOCK_INODE_LOC; i < MAX_SUPBLOCK_INODES + FIRST_SUPBLOCK_INODE_LOC; i++) {
+            if ((buffer[i] != 0) && (ERR = _check_block_con(diskNum, buffer[i], INODE, blocks_checked) < 0)) {
+                return ERR;
+            }
+        }
+    }
+    else if (block_type == INODE) {
+        /* check the first four bytes */
+        if (byte0 != INODE || byte1 != SAFETY_HEX || byte2 != EMPTY_TABLEVAL || byte3 != EMPTY_TABLEVAL) {
+            return ERR_BAD_DISK;
+        }
+        /* check that the file type flag is valid */
+        int file_type = buffer[FILE_TYPE_FLAG_LOC];
+        if (file_type != FILE_TYPE_DIR && file_type != FILE_TYPE_FILE) {
+            return ERR_BAD_DISK;
+        }
+     
+        /* check that the name is valid */
+        char* filename = buffer + FILE_NAME_LOC;
+        if (buffer[FILE_NAME_LOC + FILENAME_LENGTH] != 0 || strlen(filename) <= 0) {
+            return ERR_BAD_DISK;
+        }
+
+        // check that everything in the inode is a data block / inode block (for dirs)
+        int start_bound = file_type == FILE_TYPE_FILE ? FILE_DATA_LOC : DIR_DATA_LOC;
+        int range = file_type == FILE_TYPE_FILE ? MAX_FILE_DATA : MAX_DIR_INODES;
+        for (int i = start_bound; i < range; i++) {
+            if (file_type == FILE_TYPE_FILE && (buffer[i] !=0) && _check_block_con(diskNum, buffer[i], FILEEX, blocks_checked) != 0) {
+                return ERR_BAD_DISK;
+            } else if (file_type == FILE_TYPE_DIR && (buffer[i] != 0) && (_check_block_con(diskNum, buffer[i], INODE, blocks_checked) != 0)) {
+                return ERR_BAD_DISK;
+            }
+        }
+    }
+
+    else if (block_type == FILEEX) {
+        /* check the first four bytes */
+        if (byte0 != FILEEX || byte1 != SAFETY_HEX || byte2 != EMPTY_TABLEVAL || byte3 != EMPTY_TABLEVAL) {
+            return ERR_BAD_DISK;
+        }
+    }
+
+    else if (block_type == FREE) {
+        /* check the first four bytes */
+        if (byte0 != FREE || byte1 != SAFETY_HEX || byte3 != EMPTY_TABLEVAL) {
+            return ERR_BAD_DISK;
+        }
+
+        if (byte2 != 0) {
+            return _check_block_con(diskNum, byte2, FREE, blocks_checked);
+        }
+    }
+    
+    return TFS_SUCCESS;
+}
+
+/* _navigate_to_dir(): 'navigates' to the last dir (or file) if the given dirName path
+    + fills the last_path_h with the name of the dir/file at the end of the dirName path
+    + fills the current_h (if given) with the inode block address of the last inode it finds in the dirName path
+    + fills the parrent_h (if given) with the inode block address of the parent of current_h
+    = searching_for specifies if the last thing in the path should be a file or a directory
+    > returns wether or not it found the dir/file at the end of the dirName path
+    - errors:
+        - if any item along the path is incorrectly a file rather than directory
+        - if a directory along that path cannot be found */
+int _navigate_to_dir(char* dirName, char* last_path_h, int* current_h, int* parent_h, int searching_for) {
+
+    /* The superblock effectively behaves as the inode for the root */
+    int current = SUPERBLOCK_DISKLOC;
+    char current_block[BLOCKSIZE]; 
+    int parent = current;
+    if ((ERR = readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, current_block)) < 0) {
+        return ERR;
+    }
+
+    bool dir_found_flag = false; 
+    int path_index = 1;
+    char cur_path[FILENAME_LENGTH + 1]; 
+    char inode_buffer[BLOCKSIZE];
+
+    /* navigate through the directories until the end */
+    while (path_index != strlen(dirName) + 1) {
+
+        /* parse thru dirName to get the next path name and make sure valid */
+        path_index = _parse_path(dirName, path_index, cur_path);
+        if (path_index < 0) {
+            return path_index;
+        }
+
+        /* look through the inode pointers in the parent_block for the next path */
+        dir_found_flag = false;
+
+        /* set the bounds for i based on wether in the superblock or a directory inode */
+        int start_bound = current == 0 ? FIRST_SUPBLOCK_INODE_LOC : DIR_DATA_LOC;
+        int range = current == 0 ? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
+        for(int i = start_bound; i < range + start_bound; i++) {
+
+            /* skip over if we have an empty block, meaning no inode exists there */
+            if(!current_block[i]) {
+                continue;
+            }
+
+            /* Grab the name from the inode buffer */
+            memset(inode_buffer, 0, BLOCKSIZE);
+            if ((ERR = readBlock(mounted->diskNum, current_block[i], inode_buffer)) < 0) {
+                return ERR;
+            }
+            char* filename = inode_buffer + FILE_NAME_LOC; 
+
+            /* if found, reset that directory as the parent_block */
+            if(strcmp(cur_path, filename) == 0) {
+                dir_found_flag = true;
+
+                /* make sure the file found is of type 'directory' */
+                if (inode_buffer[FILE_TYPE_FLAG_LOC] == FILE_TYPE_FILE && (path_index != strlen(dirName) + 1 || searching_for == FILE_TYPE_DIR)) {
+                    return ERR_NOT_A_DIR;
+                }
+
+                /* get the inode of the found directory and store it as the parent */
+                parent = current;
+                current = current_block[i];
+                if ((ERR = readBlock(mounted->diskNum, current_block[i], current_block)) < 0) {                    
+                    return ERR;
+                }
+                
+                break;
+            }
+        }
+
+        /* if not at the last path and unable to find the directory, error */
+        if (path_index != strlen(dirName) + 1 && !dir_found_flag) {
+            return ERR_DIR_NOT_FOUND; // ERR: not a directory, directory not found
+        }
+
+    }
+
+    if (current_h != NULL) {
+        *current_h = current;
+    }
+    if (parent_h != NULL) {
+        *parent_h = parent;
+    }
+    strcpy(last_path_h, cur_path);
+
+    return dir_found_flag;
+}
 
 /* _parse_path(): parse the given path to get the next directory/file at the given index
     + store the path name in the given buffer, up to the max filename length
@@ -1062,7 +1075,7 @@ int _update_fd_table_index() {
     return ERR_OUT_OF_FDS;
 }
 
-/* Pop and return the next free block, and replace the superblock index
+/* Pop and return the next free block, and replace the parent index
  with that block's next block. Should return 0 if no more free blocks exist. */
 char _pop_free_block() {
     // Grab the superblock. This is done locally as some functions may not
@@ -1149,6 +1162,7 @@ int _print_directory_contents(int block, int tabs) {
     return TFS_SUCCESS;
 }
 
+/* given a file inode number and its parent, delete it */
 int _remove_inode_and_blocks(char inode_num, char parent) {
     /* Grab the block's inode */
     char inode[BLOCKSIZE]; 
