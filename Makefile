@@ -57,7 +57,7 @@ timeStampTest: tinyFS.h libDisk.h tinyFS.o libDisk.o timeStampTest.c
 consistencyCheckTest: tinyFS.h libDisk.h tinyFS.o libDisk.o consistencyCheckTest.c
 	$(CC) $(CFLAGS) -o consistencyCheckTest tinyFS.o libDisk.o consistencyCheckTest.c
 
-unitTests: libDiskTest tinyFSTest timeStampTest
+unitTests: libDiskTest tinyFSTest timeStampTest consistencyCheckTest
 	./libDiskTest
 	./tinyFSTest
 	./timeStampTest

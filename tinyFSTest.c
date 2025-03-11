@@ -154,7 +154,7 @@ void testTfs_updateFile()
     assert(tfs_mount(diskName) == 0);
 
     // Testing making a new file
-    fileDescriptor fileNum = tfs_openFile("test");
+    fileDescriptor fileNum = tfs_openFile("/test");
     assert(fileNum >= 0);
     char *inode = (char*) verify_contents(diskName, sizeof(char) * BLOCKSIZE * 1, sizeof(char) *BLOCKSIZE);
     assert(inode[BLOCK_TYPE_LOC] == INODE);
@@ -166,7 +166,7 @@ void testTfs_updateFile()
     assert(fileSize == 0);
 
     // Testing making a new file where the name is too long
-    assert(tfs_openFile("thisnameistoolong.txt") < 0);
+    assert(tfs_openFile("/thisnameistoolong.txt") < 0);
 
     // Too many files
     assert(tfs_unmount() == 0);
@@ -176,16 +176,16 @@ void testTfs_updateFile()
     for (int i = 1; i < ((diskSize / BLOCKSIZE)); i++)
     {
         char fileName[8];
-        snprintf(fileName, 8, "fil%d", i);
+        snprintf(fileName, 8, "/fi%d", i);
         assert(tfs_openFile(fileName) >= 0);
     }
 
-    assert(tfs_openFile("extra") < 0);
+    assert(tfs_openFile("/extra") < 0);
     assert(tfs_unmount() == 0);
     remove(diskName);
 
     // Trying to write when no disk is mounted
-    assert(tfs_openFile("nodrv") < 0);
+    assert(tfs_openFile("/nodrv") < 0);
 
 
     // A file where the name is an empty string
@@ -196,7 +196,7 @@ void testTfs_updateFile()
 
     // Opening the same file twice
     int dupFileNum = tfs_openFile("abc");
-    int dupFileNum2 = tfs_openFile("abc");
+    int dupFileNum2 = tfs_openFile("/abc");
     assert(dupFileNum != dupFileNum2);
 
     assert(tfs_unmount() == 0);
@@ -206,7 +206,7 @@ void testTfs_updateFile()
     assert(tfs_mkfs(diskName, DEFAULT_DISK_SIZE) == 0);
     assert(tfs_mount(diskName) == 0);
 
-    fileDescriptor wFileNum = tfs_openFile("test");
+    fileDescriptor wFileNum = tfs_openFile("/test");
     assert(wFileNum >= 0);
     char testStr[44] = "The quick brown fox jumps over the lazy dog";
     assert(tfs_writeFile(wFileNum, testStr, 44) == 0);
@@ -267,7 +267,7 @@ void testTfs_updateFile()
     // Reading a byte from a file
     assert(tfs_mkfs(diskName, DEFAULT_DISK_SIZE) == 0);
     assert(tfs_mount(diskName) == 0);
-    fileDescriptor testFile = tfs_openFile("test");
+    fileDescriptor testFile = tfs_openFile("/test");
 
     char readStr[6] = "hello";
     assert(tfs_writeFile(testFile, readStr, 6) == 0);
@@ -301,7 +301,7 @@ void testTfs_updateFile()
     assert(fileByte == 'l');
 
     // Seeking in different files
-    fileDescriptor otherFile = tfs_openFile("another");
+    fileDescriptor otherFile = tfs_openFile("/another");
     char seek_newString[23] = "this is another string";
     assert(tfs_writeFile(otherFile, seek_newString, 23) == 0);
     assert(tfs_seek(otherFile, 3) == 0);
@@ -334,12 +334,12 @@ void testTfs_updateFile()
     assert(tfs_closeFile(testFile) != 0);
 
     // Opening a file, writing something, closing it, opening and reading it
-    fileDescriptor runFile = tfs_openFile("newfile");
+    fileDescriptor runFile = tfs_openFile("/newfile");
     char variableToWrite[49] = "a test string full of data to write to the disk.";
     assert(tfs_writeFile(runFile, variableToWrite, 49) == 0);
     tfs_closeFile(runFile);
 
-    fileDescriptor runFile2 = tfs_openFile("newfile");
+    fileDescriptor runFile2 = tfs_openFile("/newfile");
 
     for (int i = 0; i < 49; i++)
     {
@@ -352,7 +352,7 @@ void testTfs_updateFile()
     // Writing an integer to a file
     assert(tfs_mkfs(diskName, DEFAULT_DISK_SIZE) == 0);
     assert(tfs_mount(diskName) == 0);
-    int intFile = tfs_openFile("testFile");
+    int intFile = tfs_openFile("/testFile");
     assert(intFile >= 0);
     int test_number = 28493;
     int result_number = 0;
@@ -365,10 +365,10 @@ void testTfs_updateFile()
 
     // Writing to various files sequentially
     fileDescriptor fileNums[4];
-    fileNums[0] = tfs_openFile("fileA");
-    fileNums[1] = tfs_openFile("fileB");
-    fileNums[2] = tfs_openFile("fileC");
-    fileNums[3] = tfs_openFile("fileD");
+    fileNums[0] = tfs_openFile("/fileA");
+    fileNums[1] = tfs_openFile("/fileB");
+    fileNums[2] = tfs_openFile("/fileC");
+    fileNums[3] = tfs_openFile("/fileD");
     assert(tfs_writeFile(fileNums[0], "a", 2) == 0);
     assert(tfs_writeFile(fileNums[1], "b", 2) == 0);
     assert(tfs_writeFile(fileNums[2], "c", 2) == 0);
@@ -390,8 +390,8 @@ void testTfs_updateFile()
     assert(tfs_writeFile(34, "this won't exist", 17) != 0);
 
     // Opening a file twice, then writing to one filedescriptor and making sure the other one is consistent
-    fileDescriptor oneFD = tfs_openFile("fileE");
-    fileDescriptor anotherFD = tfs_openFile("fileE");
+    fileDescriptor oneFD = tfs_openFile("/fileE");
+    fileDescriptor anotherFD = tfs_openFile("/fileE");
 
     assert(tfs_writeFile(oneFD, "g", 2) == 0);
     assert(tfs_readByte(anotherFD, &fileByte) == 0);

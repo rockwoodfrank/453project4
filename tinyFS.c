@@ -91,7 +91,7 @@ int _check_block_con(int diskNum, int block, int block_type, char* blocks_checke
     char byte1 = buffer[SAFETY_BYTE_LOC];
     char byte2 = buffer[FREE_PTR_LOC];
     char byte3 = buffer[EMPTY_BYTE_LOC];
-
+    blocks_checked[block] = 1;
     if (block_type == SUPERBLOCK) {
         /* check the first four bytes */
         if (byte0 != SUPERBLOCK || byte1 != SAFETY_HEX || byte3 != EMPTY_TABLEVAL) {
@@ -99,7 +99,6 @@ int _check_block_con(int diskNum, int block, int block_type, char* blocks_checke
         }
 
         if (byte2 != 0) {
-            blocks_checked[block] = 1;
             if ((ERR = _check_block_con(diskNum, byte2, FREE, blocks_checked) < 0)) {
                 return ERR;
             }
@@ -107,42 +106,38 @@ int _check_block_con(int diskNum, int block, int block_type, char* blocks_checke
 
         // check that everything in the inode is a data block / inode block (for dirs)
         for (int i = FIRST_SUPBLOCK_INODE_LOC; i < MAX_SUPBLOCK_INODES + FIRST_SUPBLOCK_INODE_LOC; i++) {
-            if (buffer[i] != 0 && (ERR = _check_block_con(diskNum, buffer[i], INODE, blocks_checked) < 0)) {
+            if ((buffer[i] != 0) && (ERR = _check_block_con(diskNum, buffer[i], INODE, blocks_checked) < 0)) {
                 return ERR;
             }
         }
-        blocks_checked[block] = 1;
     }
-
     else if (block_type == INODE) {
         /* check the first four bytes */
         if (byte0 != INODE || byte1 != SAFETY_HEX || byte2 != EMPTY_TABLEVAL || byte3 != EMPTY_TABLEVAL) {
             return ERR_BAD_DISK;
         }
-
         /* check that the file type flag is valid */
         int file_type = buffer[FILE_TYPE_FLAG_LOC];
-        if (file_type != FILE_TYPE_DIR || file_type != FILE_TYPE_FILE) {
+        if (file_type != FILE_TYPE_DIR && file_type != FILE_TYPE_FILE) {
             return ERR_BAD_DISK;
         }
-
+     
         /* check that the name is valid */
         char* filename = buffer + FILE_NAME_LOC;
         if (buffer[FILE_NAME_LOC + FILENAME_LENGTH] != 0 || strlen(filename) <= 0) {
             return ERR_BAD_DISK;
         }
-
         // check that everything in the inode is a data block / inode block (for dirs)
         int start_bound = file_type == FILE_TYPE_FILE ? FILE_DATA_LOC : DIR_DATA_LOC;
         int range = file_type == FILE_TYPE_FILE ? MAX_FILE_DATA : MAX_DIR_INODES;
         for (int i = start_bound; i < range; i++) {
-            if (file_type == FILE_TYPE_FILE && _check_block_con(diskNum, buffer[i], FILEEX, blocks_checked) != 0) {
+            if (file_type == FILE_TYPE_FILE && (buffer[i] !=0) && _check_block_con(diskNum, buffer[i], FILEEX, blocks_checked) != 0) {
                 return ERR_BAD_DISK;
-            } else if (file_type == FILE_TYPE_DIR && _check_block_con(diskNum, buffer[i], INODE, blocks_checked) != 0) {
+            } else if (file_type == FILE_TYPE_DIR && (buffer[i] != 0) && (_check_block_con(diskNum, buffer[i], INODE, blocks_checked) != 0)) {
                 return ERR_BAD_DISK;
             }
         }
-        blocks_checked[block] = 1;
+        
     }
 
     else if (block_type == FILEEX) {
@@ -150,7 +145,6 @@ int _check_block_con(int diskNum, int block, int block_type, char* blocks_checke
         if (byte0 != FILEEX || byte1 != SAFETY_HEX || byte2 != EMPTY_TABLEVAL || byte3 != EMPTY_TABLEVAL) {
             return ERR_BAD_DISK;
         }
-        blocks_checked[block] = 1;
     }
 
     else if (block_type == FREE) {
@@ -250,10 +244,10 @@ fileDescriptor tfs_openFile(char *name) {
     if (name == NULL || name[0] != '/') {
         return ERR_INVALID_INPUT;  // ERR: invalid input error
     }
-
+    
     int parent = SUPERBLOCK_DISKLOC;
     char cur_path[FILENAME_LENGTH + 1];
-    
+
     /* see if the file in the path already exists */
     int dir_found_flag = _navigate_to_dir(name, cur_path, &parent, NULL, FILE_TYPE_FILE);
     if(dir_found_flag < 0) {
@@ -403,6 +397,9 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
         }
         // Update important data
         temp_block[BLOCK_TYPE_LOC] = FILEEX;
+        temp_block[SAFETY_BYTE_LOC] = SAFETY_HEX;
+        temp_block[FREE_PTR_LOC] = EMPTY_TABLEVAL;
+        temp_block[EMPTY_BYTE_LOC] = EMPTY_TABLEVAL;
 
         // Copy the buffer data over to the block
         if(writeSize > MAX_DATA_SPACE) {
@@ -1250,56 +1247,56 @@ int _write_long(char* block, unsigned long longVal, char loc) {
     return 0;
 }
 
-/* Uncomment and run this block if you want to test */
-int main(int argc, char* argv[]) {
-    if(argc > 1) {
-        tfs_mkfs("SydneysDisk.dsk", 8192);    
-    }
-
-
-    if((tfs_mount("SydneysDisk.dsk")) < 0) {
-        printf("Failed to mount Sydney's disk\n");
-        return -1;
-    }
-
-    printf("%d\n", tfs_createDir("testDir"));
-
-    int fd = tfs_openFile("testDir/FOO");
-    printf("%d\n", fd);
-
-    printf("%d\n", tfs_deleteFile(fd));
-
-//     #define REPEAT 20
-//     #define PATTERN "abcdefghijklmno "
-//     #define PATTERN_LEN (sizeof(PATTERN) - 1) // Exclude null terminator
-    
-//     char buffer[REPEAT * PATTERN_LEN + 1]; // +1 for null terminator
-//     for (int i = 0; i < REPEAT; i++) {
-//         memcpy(buffer + i * PATTERN_LEN, PATTERN, PATTERN_LEN);
+// /* Uncomment and run this block if you want to test */
+// int main(int argc, char* argv[]) {
+//     if(argc > 1) {
+//         tfs_mkfs("SydneysDisk.dsk", 8192);    
 //     }
-//     buffer[REPEAT * PATTERN_LEN] = '\0'; // Null terminate the string
-
-//    printf("%s\n", buffer); // Print result
-
-//    tfs_writeFile(fd, buffer, REPEAT * PATTERN_LEN + 1);
-
-//    printf("\n\n\n");
-
-//    char byte;
-//    while(tfs_readByte(fd, &byte) >= 0) {
-//     printf("%c", byte);
-//    }
-
-//    printf("\n");
 
 
+//     if((tfs_mount("SydneysDisk.dsk")) < 0) {
+//         printf("Failed to mount Sydney's disk\n");
+//         return -1;
+//     }
 
-//     // tfs_readdir();
+//     printf("%d\n", tfs_createDir("testDir"));
 
-// //     printf("%d\n", tfs_removeDir("testDir/quincys/anisdir/ARAV"));
+//     int fd = tfs_openFile("testDir/FOO");
+//     printf("%d\n", fd);
 
-// //     printf("%d\n", tfs_removeAll("testDir/quincys"));
+//     printf("%d\n", tfs_deleteFile(fd));
+
+// //     #define REPEAT 20
+// //     #define PATTERN "abcdefghijklmno "
+// //     #define PATTERN_LEN (sizeof(PATTERN) - 1) // Exclude null terminator
+    
+// //     char buffer[REPEAT * PATTERN_LEN + 1]; // +1 for null terminator
+// //     for (int i = 0; i < REPEAT; i++) {
+// //         memcpy(buffer + i * PATTERN_LEN, PATTERN, PATTERN_LEN);
+// //     }
+// //     buffer[REPEAT * PATTERN_LEN] = '\0'; // Null terminate the string
+
+// //    printf("%s\n", buffer); // Print result
+
+// //    tfs_writeFile(fd, buffer, REPEAT * PATTERN_LEN + 1);
+
+// //    printf("\n\n\n");
+
+// //    char byte;
+// //    while(tfs_readByte(fd, &byte) >= 0) {
+// //     printf("%c", byte);
+// //    }
+
+// //    printf("\n");
 
 
-    return 0;
-}
+
+// //     // tfs_readdir();
+
+// // //     printf("%d\n", tfs_removeDir("testDir/quincys/anisdir/ARAV"));
+
+// // //     printf("%d\n", tfs_removeAll("testDir/quincys"));
+
+
+//     return 0;
+// }
