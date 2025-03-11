@@ -12,6 +12,7 @@
 #define SYS_ERR_CLOSE				-5		// system error for close
 #define SYS_ERR_SEEK				-6		// system error for seek
 #define SYS_ERR_READ				-7		// system error for read
+#define SYS_ERR_FSTAT				-8		// system error for fstat
 
 // LIBDISK ERR MACROS
 #define ERR_DISK_FILE_NOT_FOUND		-10		// the given disk file does not exist and cannot be created

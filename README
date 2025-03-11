@@ -56,11 +56,6 @@ Byte    Value
 3+      Zeros or junk data
 
 
-TODO:
-- replace all 'return -1' with our error system
-	> should writeBlock err if given block outside of disk size
-	> readBlock seg faults if block* is not 256
-- if time: implement ls dir/../dir2 ?
 
 remaining funcs:
 - edit openFile to work with directories

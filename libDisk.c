@@ -77,6 +77,7 @@ int closeDisk(int disk) {
     return TFS_SUCCESS;
 }
 
+/* block needs to be of 256 bytes or else there will be undefined behavior */
 int readBlock(int disk, int bNum, void *block) {
     int byteOffset = bNum * BLOCKSIZE;
 
@@ -112,6 +113,14 @@ int writeBlock(int disk, int bNum, void* block) {
 
     /* make sure the given block is valid */
     if (block == NULL) {
+        return ERR_INVALID_INPUT;
+    }
+
+    struct stat file_stat;
+    if (fstat(disk, &file_stat) == -1) {
+        return SYS_ERR_FSTAT;
+    }  
+    if (byteOffset >= file_stat.st_size) {
         return ERR_INVALID_INPUT;
     }
 
