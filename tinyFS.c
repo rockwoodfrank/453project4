@@ -885,7 +885,7 @@ int tfs_rename(fileDescriptor FD, char* newName) {
     }
 
     /* make sure the given inputs are valid */
-    if (newName == NULL || FD <= 0 || strlen(newName) > 8) {
+    if (newName == NULL || FD <= 0 || strlen(newName) > 8 || strlen(newName) < 1) {
         return ERR_INVALID_INPUT; // ERR: invalid input
     }
 
