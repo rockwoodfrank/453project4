@@ -8,6 +8,10 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 /* use this name for a default emulated disk file name */
 #define DEFAULT_DISK_NAME "tinyFSDisk"
@@ -83,7 +87,7 @@
     /* directory inode block byte locations */
 
         /* directory timestamp macros, since you guys decided to make them different :/ */
-        #define DIR_CREATEDTIME_LOC    (FILE_NAME_LOC + FILENAME_LENGTH + 1)
+        #define DIR_CREATEDTIME_LOC    (FILE_OFFSET_LOC + 4)
         #define DIR_MODIFIEDTIME_LOC   (DIR_CREATEDTIME_LOC + 8)
         #define DIR_ACCESSTIME_LOC     (DIR_MODIFIEDTIME_LOC + 8)
 
@@ -164,6 +168,28 @@ int tfs_readByte(fileDescriptor FD, char *buffer);
 /* change the file pointer location to offset (absolute). Returns
 success/error codes.*/
 int tfs_seek(fileDescriptor FD, int offset);
+
+/* EXTRA FEATURES */
+
+/* creates a directory, name could contain a “/”-delimited path) */
+int tfs_createDir(char* dirName);
+
+/* deletes empty directory */
+int tfs_removeDir(char* dirName);
+
+/* recursively remove dirName and any file and directories under it. 
+Special “/” token may be used to indicate root dir. */
+int tfs_removeAll(char* dirName);
+
+/* (B) directory listing and file renaming */
+
+/* renames a file. New name should be passed in. File has to be open. */
+int tfs_rename(fileDescriptor FD, char* newName);
+
+/* lists all the files and directories on the disk, print the list to stdout */
+int tfs_readdir();
+
+
 
 // Timestamps
 // Implement creation, modification, and access timestamps for each file.
