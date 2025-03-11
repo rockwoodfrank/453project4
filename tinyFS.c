@@ -792,12 +792,12 @@ int tfs_readFileInfo(fileDescriptor FD) {
         return ERR_INVALID_FD;
     }
 
-    time_t *createdTime;
-    time_t *modifiedTime;
-    time_t *accessedTime;
-    char *fileName;
-    int *fileSize;
-    char inode[BLOCKSIZE];
+    time_t* createdTime;
+    time_t* modifiedTime;
+    time_t* accessedTime;
+    uint8_t* fileName;
+    int fileSize;
+    uint8_t inode[BLOCKSIZE];
     
     if ((ERR = readBlock(mounted->diskNum, fd_table[FD], inode)) < 0) {
         return ERR;
@@ -807,8 +807,9 @@ int tfs_readFileInfo(fileDescriptor FD) {
     printf("Name:\t\t%s\n", fileName);
     if (inode[FILE_TYPE_FLAG_LOC] == FILE_TYPE_FILE) {
         // Print file size if it's a file
-        fileSize = (int *)&inode[FILE_SIZE_LOC];
-        printf("Size:\t\t%d bytes\n", *fileSize);
+        int s = FILE_SIZE_LOC;
+        fileSize = (inode[s] << 24) + (inode[s + 1] << 16) + (inode[s + 2] << 8) + inode[s + 3];
+        printf("Size:\t\t%d bytes\n", fileSize);
 
         // Print times
         createdTime = (time_t *)&inode[FILE_CREATEDTIME_LOC];
