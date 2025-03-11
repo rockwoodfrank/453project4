@@ -144,7 +144,6 @@ int tfs_unmount() {
 
     memset(fd_table, 0, FD_TABLESIZE);
 
-    /* TODO: Make sure the file is unmounted "cleanly" */
     return returnVal;
 }
 
@@ -490,7 +489,7 @@ int tfs_rename(fileDescriptor FD, char* newName) {
     if ((ERR = readBlock(mounted->diskNum, fd_table[FD], inode)) < 0) {
         return ERR;
     }
-    _write_long(inode, time(NULL), FILE_CREATEDTIME_LOC);
+    _write_long((uint8_t*)inode, time(NULL), FILE_CREATEDTIME_LOC);
     /* clear out the current inode's name and write in the new one */
     char* filename = inode + FILE_NAME_LOC;
     memset(filename, 0, FILENAME_LENGTH);
