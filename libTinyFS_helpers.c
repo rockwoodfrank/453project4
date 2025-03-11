@@ -1,9 +1,9 @@
 #include "libTinyFS_helpers.h"
 
-int ERR;
-tinyFS* mounted;
-uint8_t fd_table[FD_TABLESIZE];
-int fd_table_index; 
+// // int ERR;
+// tinyFS* mounted;
+// uint8_t fd_table[FD_TABLESIZE];
+// int fd_table_index; 
 
 /* ~ HELPER FUNCTIONS ~ */
 
