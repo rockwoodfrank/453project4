@@ -22,7 +22,7 @@ int     _print_directory_contents(int block, int tabs);
 int     _write_long(uint8_t* block, unsigned long longVal, char loc);
 int     _remove_inode_and_blocks(char inode, char parent);
 int     _fetch_parent(char inode_num);
-int     _format_path(char **path);
+int     _find_path_start(char *path);
 int     _check_block_con(int diskNum, int block, int block_type, char* blocks_checked);
 
 /* error status holder */
@@ -169,8 +169,6 @@ fileDescriptor tfs_openFile(char *name) {
     if (name == NULL) {
         return ERR_INVALID_INPUT;  // ERR: invalid input error
     }
-
-    _format_path(&name);
 
     int parent = SUPERBLOCK_DISKLOC;
     char cur_path[FILENAME_LENGTH + 1];
@@ -569,8 +567,6 @@ int tfs_createDir(char* dirName) {
         return ERR_NO_DISK_MOUNTED;
     }
 
-    _format_path(&dirName);
-
     /* make sure the given dirName is not null */
     if (dirName == NULL || dirName[0] != '/') {
         return ERR_INVALID_INPUT;  // ERR: invalid input error
@@ -649,8 +645,6 @@ int tfs_removeDir(char* dirName) {
         return ERR_NO_DISK_MOUNTED;
     }
 
-    _format_path(&dirName);
-
     /* make sure the given dirName is not null */
     if (dirName == NULL || dirName[0] != '/') {
         return ERR_INVALID_INPUT;  // ERR: invalid input error
@@ -715,8 +709,6 @@ int tfs_removeAll(char* dirName) {
     if (mounted == NULL) {
         return ERR_NO_DISK_MOUNTED;
     }
-
-    _format_path(&dirName);
 
     /* make sure the given dirName is not null */
     if (dirName == NULL) {
@@ -958,7 +950,7 @@ int _navigate_to_dir(char* dirName, char* last_path_h, int* current_h, int* pare
     }
 
     bool dir_found_flag = false; 
-    int path_index = 1;
+    int path_index = _find_path_start(dirName);
     char cur_path[FILENAME_LENGTH + 1]; 
     char inode_buffer[BLOCKSIZE];
 
