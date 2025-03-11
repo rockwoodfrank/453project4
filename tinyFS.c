@@ -20,6 +20,7 @@ int     _parse_path(char* path, int index, char* buffer);
 int     _navigate_to_dir(char* dirName, char* last_path_h, int* current_h, int* parent_h, int searching_for); 
 int     _print_directory_contents(int block, int tabs);
 int     _write_long(char* block, unsigned long longVal, char loc);
+int     _remove_inode_and_blocks(uint8_t inode);
 
 /* error status holder */
 int ERR = 0;
@@ -80,7 +81,7 @@ int tfs_mkfs(char *filename, int nBytes) {
     return TFS_SUCCESS;
 }
 
-int _check_data_block_consistency(int diskNum, int block, int, block_type) {
+int _check_data_block_consistency(int diskNum, int block, int block_type) {
     if ((ERR = readBlock(diskNum, i, buffer)) < 0) {
         return ERR;
     }
@@ -409,42 +410,9 @@ int tfs_deleteFile(fileDescriptor FD) {
     if(!fd_table[FD]) {
         return ERR_INVALID_FD;
     }
+    uint8_t inode_num = fd_table[FD];
 
-    /* Grab the block's inode */
-    uint8_t inode[BLOCKSIZE]; 
-    if ((ERR = readBlock(mounted->diskNum, fd_table[FD], inode)) < 0 ) {
-        return ERR;
-    }
-
-    // Resetting the direct blocks so the data is "lost" since nothing is pointing to them
-    // Counter for clearing
-    int i = 0;
-    uint8_t dir_block = inode[FILE_DATA_LOC + i++];
-    while(dir_block != 0x0) {
-        // Allocating each block as "free" and adding them to the linked list
-        if ((ERR = _free_block(dir_block)) < 0) {
-            return ERR;
-        }
-        dir_block = inode[FILE_DATA_LOC + i++];
-    }
-
-    /* Finally, freeing the inode */
-    if ((ERR = _free_block(fd_table[FD])) < 0) {
-        return ERR;
-    }
-
-    /* close the file in the fd table and if there are 
-       multiple FDs for the file, close those too */
-    int node = fd_table[FD];
-    for(int i = 0; i < FD_TABLESIZE; i++) {
-        if(fd_table[i] == node) {
-            if ((ERR = tfs_closeFile(i)) < 0) {
-                return ERR;
-            }
-        }
-    }
-
-    return TFS_SUCCESS;
+    return _remove_inode_and_blocks(inode_num);
 }
 
 int tfs_readByte(fileDescriptor FD, char* buffer) {
@@ -1144,6 +1112,56 @@ int _print_directory_contents(int block, int tabs) {
             }
 
         }
+    }
+
+    return TFS_SUCCESS;
+}
+
+int _remove_inode_and_blocks(uint8_t inode_num)
+{
+    /* Grab the block's inode */
+    uint8_t inode[BLOCKSIZE]; 
+    uint8_t superblock[BLOCKSIZE];
+    if ((ERR = readBlock(mounted->diskNum, inode_num, inode)) < 0 ) {
+        return ERR;
+    }
+
+    // Resetting the direct blocks so the data is "lost" since nothing is pointing to them
+    // Counter for clearing
+    int i = 0;
+    uint8_t dir_block = inode[FILE_DATA_LOC + i++];
+    while(dir_block != 0x0) {
+        // Allocating each block as "free" and adding them to the linked list
+        if ((ERR = _free_block(dir_block)) < 0) {
+            return ERR;
+        }
+        dir_block = inode[FILE_DATA_LOC + i++];
+    }
+
+    /* Finally, freeing the inode */
+    if ((ERR = _free_block(inode_num)) < 0) {
+        return ERR;
+    }
+
+    /* close the file in the fd table and if there are 
+        multiple FDs for the file, close those too */
+    for(int i = 0; i < FD_TABLESIZE; i++) {
+        if(fd_table[i] == inode_num) {
+            if ((ERR = tfs_closeFile(i)) < 0) {
+                return ERR;
+            }
+        }
+    }
+    // Remove the inode number from the superblock
+    if ((ERR = readBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock)) < 0 ) {
+        return ERR;
+    }
+    int i = FIRST_SUPBLOCK_INODE_LOC;
+    while (superblock[i] != inode_num) i++;
+
+    superblock[i] = EMPTY_TABLEVAL;
+    if ((ERR = writeBlock(mounted->diskNum, SUPERBLOCK_DISKLOC, superblock)) < 0 ) {
+        return ERR;
     }
 
     return TFS_SUCCESS;

@@ -79,17 +79,17 @@
     #define FILE_MODIFIEDTIME_LOC   (FILE_CREATEDTIME_LOC + 8)
     #define FILE_ACCESSTIME_LOC     (FILE_MODIFIEDTIME_LOC + 8)
 
-    #define FILE_DATA_LOC       (FILE_ACCESSTIME_LOC + 8)              
+    #define FILE_DATA_LOC           (FILE_ACCESSTIME_LOC + 8)              
 
 
+    /* directory inode block byte locations */
 
     /* directory timestamp macros, since you guys decided to make them different :/ */
-    #define DIR_CREATEDTIME_LOC    (FILE_NAME_LOC + FILENAME_LENGTH + 1)
+    #define DIR_CREATEDTIME_LOC    (FILE_NAME_LOC + FILENAME_LENGTH + 1) // 14
     #define DIR_MODIFIEDTIME_LOC   (DIR_CREATEDTIME_LOC + 8)
     #define DIR_ACCESSTIME_LOC     (DIR_MODIFIEDTIME_LOC + 8)
   
-    /* directory inode block byte locations */
-    #define DIR_DATA_LOC        (DIR_ACCESSTIME_LOC + 8)   // 14
+    #define DIR_DATA_LOC            (DIR_ACCESSTIME_LOC + 8)   // 14
 
 
     /* how many data blocks a file inode can hold */
