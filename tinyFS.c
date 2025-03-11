@@ -711,6 +711,7 @@ int tfs_createDir(char* dirName) {
 
 /* deletes empty directory */
 int tfs_removeDir(char* dirName) {
+    printf("in removeDir\n");
     /* make sure there is a mounted tfs */
     if (mounted == NULL) {
         return ERR_NO_DISK_MOUNTED;
@@ -735,14 +736,16 @@ int tfs_removeDir(char* dirName) {
         // trying to remove a directory that does not exist
         return ERR_DIR_NOT_FOUND; 
     }
-
+   
     /* re-grab the block of the directory and make sure it is empty */
     char inode_buffer[BLOCKSIZE];
     if ((ERR = readBlock(mounted->diskNum, current, inode_buffer)) < 0) {
         return ERR;
     }
     for(int i = DIR_DATA_LOC; i < MAX_DIR_INODES; i++) {
+        printf("%d\n", inode_buffer[i]);
         if(inode_buffer[i]) {
+            printf("herehello\n");
             return ERR_DIR_NOT_EMPTY; // ERR: directory is not empty
         }
     }
@@ -803,7 +806,7 @@ int tfs_removeAll(char* dirName) {
             return ERR_DIR_NOT_FOUND; // ERR: not a directory, directory not found
         }
     }
-    
+
     /* re-grab the block of the directory and remove every item in it */
     char current_inode[BLOCKSIZE];
     if ((ERR = readBlock(mounted->diskNum, current, current_inode)) < 0) {
@@ -816,10 +819,13 @@ int tfs_removeAll(char* dirName) {
     int range = current == 0 ? MAX_SUPBLOCK_INODES : MAX_DIR_INODES;
     for(int i = start_bound; i < range + start_bound; i++) {
         if(current_inode[i]) {
+            printf("Looking at inode %hhd, which points to %d", i, current_inode[i]);
+            printf("At the top\n");
             memset(inode_buffer, 0, BLOCKSIZE);
             readBlock(mounted->diskNum, current_inode[i], inode_buffer);
 
             if (inode_buffer[FILE_TYPE_FLAG_LOC] == FILE_TYPE_FILE) {
+                printf("removing file\n");
                 /* SYDNOTE: code copied from deleteFile, should make a helper function
                 called smth like deleteFileByInode where all the same code except 
                 replace fd_table[FD] with the inode block number */
@@ -847,6 +853,7 @@ int tfs_removeAll(char* dirName) {
                     return ERR;
                 }
             } else if (inode_buffer[FILE_TYPE_FLAG_LOC] == FILE_TYPE_DIR) {
+                printf("removing directory\n");
                 char inode[BLOCKSIZE]; 
                 if ((ERR = readBlock(mounted->diskNum, current_inode[i], inode)) < 0) {
                     return ERR;
@@ -861,6 +868,7 @@ int tfs_removeAll(char* dirName) {
                 strcat(dir_path, inode_buffer + FILE_NAME_LOC);
 
                 if ((ERR = tfs_removeAll(dir_path)) < 0) { 
+                    printf("right here\n");
                     return ERR;
                 }
                 /* SYDNOTE: hmm maybe we do need a helper where removeall just calls a 
@@ -869,8 +877,15 @@ int tfs_removeAll(char* dirName) {
                 removeAll, and then use it here to recurse */
                 free(dir_path); // TODO: test that this works
             }
+            printf("here\n");
+            current_inode[i] = 0x0;
+            if ((ERR = writeBlock(mounted->diskNum, current, current_inode)) < 0) {
+                return ERR;
+            }
         }
     }
+
+    printf("outhere\n");
 
     /* if not the root directory,
     once everything is removed, delete the current directory */

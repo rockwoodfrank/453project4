@@ -15,6 +15,7 @@ int main()
     assert(tfs_mount("testFiles/normalDisk.dsk") == TFS_SUCCESS);
 
     assert(tfs_readdir() == 0);
+    assert(tfs_removeAll("/users/rocky") == 0);
 
     tfs_unmount();
 
