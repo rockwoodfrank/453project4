@@ -15,9 +15,11 @@ int main()
     assert(tfs_mount("testFiles/normalDisk.dsk") == TFS_SUCCESS);
 
     assert(tfs_readdir() == 0);
-    assert(tfs_removeAll("/users/rocky") == 0);
+    assert(tfs_removeAll("/") == 0);
 
     tfs_unmount();
+    make_good_disk();
+    assert(tfs_mount("testFiles/normalDisk.dsk") == TFS_SUCCESS);
 
     // Tests for data blocks not on free list or allocated to an inode
     assert(tfs_mount("testFiles/weirdBlocks.dsk") != TFS_SUCCESS);
