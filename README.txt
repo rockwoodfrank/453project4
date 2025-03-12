@@ -9,13 +9,18 @@ Notes if Issues with auto-grader:
 	the basicTinyFSTest.c given to use in class uses "TinyFS_errno.h" but the specs use "tinyFS_errno.h"; we are using tinyFS_errno.h (lower case t)
 - tfs_openFile() & direcotry functions (discussed with Tomas)
 	the instructions say to use the absolute path for files and directories, which we took to mean that paths should include the "/" before it. But, the given tests do not use "/" so we have implemented it to accomodate either. For example, tfs_openFile("test") and tfs_openFile("/test") should both work.
-- all of our MACROS are in tinyFS.h and libTinyFS.h holds the tfs library function headers
+- all of our MACROS are in tinyFS.h and libTinyFS.h, and libTinyFS_headers.h holds the tfs library function headers and helpers 
 
 Explanation of our TFS:
 - The FREE_PTR_BYTE in our superblock and free blocks are used to point to the next available free block. These work in a linked list manner and determine which block to use for write new files and inodes. If the free block pointer is 0, there are no more free blocks.
 - Each byte in our superblock points to an inode.
 - Each inode has file information, at locations specified by MACROS, and the remaining bytes point to file data blocks (or point to inode blocks if a directory inode instead of a file inode).
 - We have a gloabl list of file dsecriptors that map to its corresponding file inode.
+
+Our Demo:
+- In tinyFSDemo.c, we demonstrate the basic functionality of our entire tfs, with some edge cases. More thorough edge cases can be tested by running "make test".
+- When running the demo file, it first runs some tests of mounting various corrupted disks (feature H). Then, if "demo.dsk" is not present, it creates and sets up a disk with that name, and the disk gets written to and read from. The disk can then be inspected when the demo finishes. If the demo is run again and the disk is present, it will mount it and run different funcitons, such as deleting. After the demo completes running the second time, the disk can be inspected and should be deleted before running the demo again.
+- Running the demo twice (where the first time, "demo.dsk" does not exist) shows all the basic functionality of our tfs and the additional features we implemented.
 
 
 Chosen Features:
@@ -61,7 +66,7 @@ Byte    Value
 1       0x44
 2       Empty
 3       Empty
-4		File Type Flag (f)
+4       File Type Flag (f)
 5-13    File name
 14-17   File size
 18-21   File Offset
@@ -76,7 +81,7 @@ Byte    Value
 1       0x44
 2       Empty
 3       Empty
-4		File Type Flag (d)
+4       File Type Flag (d)
 5-13    Dir name
 14-21 	Dir Creation Time
 22-29	Dir Modification Time
