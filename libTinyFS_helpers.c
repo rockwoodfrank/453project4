@@ -32,14 +32,14 @@ int _check_block_con(int diskNum, int block, int block_type, char* blocks_checke
         }
 
         if (byte2 != 0) {
-            if ((ERR = _check_block_con(diskNum, byte2, FREE, blocks_checked) < 0)) {
+            if ((ERR = _check_block_con(diskNum, byte2, FREE, blocks_checked)) < 0) {
                 return ERR;
             }
         }
 
         // check that everything in the inode is a data block / inode block (for dirs)
         for (int i = FIRST_SUPBLOCK_INODE_LOC; i < MAX_SUPBLOCK_INODES + FIRST_SUPBLOCK_INODE_LOC; i++) {
-            if ((buffer[i] != 0) && (ERR = _check_block_con(diskNum, buffer[i], INODE, blocks_checked) < 0)) {
+            if ((buffer[i] != 0) && ((ERR = _check_block_con(diskNum, buffer[i], INODE, blocks_checked)) < 0)) {
                 return ERR;
             }
         }
