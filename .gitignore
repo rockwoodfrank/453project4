@@ -13,6 +13,7 @@ testSydneyDisk
 basicDisk
 basicFS
 tinyFSDisk
+basic
 demo
 consistencyCheckTest
 timeStampTest

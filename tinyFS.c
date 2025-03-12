@@ -77,6 +77,12 @@ int tfs_mount(char* diskname) {
     if (diskname == NULL) {
         return ERR_INVALID_INPUT;
     }
+
+    /* if there currently is a disk file mounted, unmount it */
+    if (mounted != NULL) {
+        tfs_unmount();
+    }
+
     /* open the given disk */
     int diskNum = openDisk(diskname, 0);
     if (diskNum < 0) {
@@ -112,11 +118,6 @@ int tfs_mount(char* diskname) {
     }
     free(blocks_checked);
 
-    /* if there currently is a disk file mounted, unmount it */
-    if (mounted != NULL) {
-        tfs_unmount();
-    }
-
     /* Initialize a new tinyFS object */
     if ((mounted = (tinyFS *) malloc(sizeof(tinyFS))) == NULL) {
         return SYS_ERR_MALLOC;
@@ -143,8 +144,7 @@ int tfs_unmount() {
 
     memset(fd_table, 0, FD_TABLESIZE);
 
-    /* TODO: Make sure the file is unmounted "cleanly" */
-    return returnVal;
+    return returnVal; 
 }
 
 fileDescriptor tfs_openFile(char *name) {
@@ -255,10 +255,6 @@ int tfs_closeFile(fileDescriptor FD) {
     return TFS_SUCCESS;
 }
 
-/* Writes buffer ‘buffer’ of size ‘size’, which represents an entire
-file’s content, to the file system. Previous content (if any) will be
-completely lost. Sets the file pointer to 0 (the start of file) when
-done. Returns success/error codes. */
 int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     /* make sure there is a mounted tfs */
     if (mounted == NULL) {
@@ -484,12 +480,17 @@ int tfs_rename(fileDescriptor FD, char* newName) {
         return ERR_INVALID_INPUT; // ERR: invalid input
     }
 
+    /* make sure the new name does not have a "/" in it */
+    if (strchr(newName, '/') != NULL) {
+        return ERR_INVALID_INPUT;
+    }
+
     /* read in the inode corresponding to the given fd */
     uint8_t inode[BLOCKSIZE]; 
     if ((ERR = readBlock(mounted->diskNum, fd_table[FD], inode)) < 0) {
         return ERR;
     }
-    _write_long(inode, time(NULL), FILE_CREATEDTIME_LOC);
+    _write_long((uint8_t*) inode, time(NULL), FILE_CREATEDTIME_LOC);
     /* clear out the current inode's name and write in the new one */
     uint8_t* filename = inode + FILE_NAME_LOC;
     memset(filename, 0, FILENAME_LENGTH);
