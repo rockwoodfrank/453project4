@@ -142,7 +142,7 @@ int main(int argc, char* argv[]) {
     } else {
         /* lets delete some files */
 
-        printf("Here are the disk contents before we start the deletions \n");
+        printf("Here are the disk contents before we start the deletions:\n");
         tfs_readdir();
 
         int steak = tfs_openFile("/foods/savory/steak");
@@ -157,6 +157,9 @@ int main(int argc, char* argv[]) {
             exit(EXIT_FAILURE);
         }
 
+        /* Access some files so the timestamps get updated */
+
+        /* here the access time gets updated */
         tfs_seek(waffles, 270);
         char s;
         status = tfs_readByte(waffles, &s);
@@ -165,11 +168,18 @@ int main(int argc, char* argv[]) {
             exit(EXIT_FAILURE);
         }
 
-        printf("\n\nFile data for the file \"waffles\"\n");
-        tfs_readFileInfo(waffles);
-
+        /* here the access and modification time gets updated */
         char steakBlog[] = "Eat some yummy steak";
         status = tfs_writeFile(steak, steakBlog, sizeof(steakBlog));
+        if(status < 0) {
+            printf("writeFile error (%d)\n", status);
+            exit(EXIT_FAILURE);
+        }
+
+
+        /* lets fetch the timestamps of some data */
+        printf("\n\nFile data for the file \"waffles\"\n");
+        tfs_readFileInfo(waffles);
 
         printf("\n\nFile data for the file \"steak\"\n");
         tfs_readFileInfo(steak);
@@ -177,6 +187,13 @@ int main(int argc, char* argv[]) {
         int sausage = tfs_openFile("/foods/savory/sausage");
         if(sausage < 0) {
             printf("open file error (%d)\n", sausage);
+            exit(EXIT_FAILURE);
+        }
+
+        char sausageBlog[] = "Eat some yummy sausage";
+        status = tfs_writeFile(sausage, sausageBlog, sizeof(sausageBlog));
+        if(status < 0) {
+            printf("writeFile error (%d)\n", status);
             exit(EXIT_FAILURE);
         }
 
@@ -198,14 +215,37 @@ int main(int argc, char* argv[]) {
             exit(EXIT_FAILURE);
         }
 
+        /* rename the file */
         status = tfs_rename(sausage, "hotdog");
+        printf("Here are the contents of the file \"hotdog\"\n");
         if(status < 0) {
             printf("rename error (%d)\n", status);
             exit(EXIT_FAILURE);
         }
 
+        /* prove you can still access file data even after renaming */
         printf("\n\nFile data for the file \"hotdog\"\n");
         tfs_readFileInfo(sausage);
+
+        /* ReadByte works after renaming */
+        while(tfs_readByte(sausage, &s) >= 0) {
+            printf("%c", s);
+        }
+
+        int hotdog = tfs_openFile("foods/savory/hotdog");
+        if(hotdog < 0) {
+            printf("openFile error (%d)\n", hotdog);
+            exit(EXIT_FAILURE);
+        }
+
+
+        printf("\n\nNow, opening the file with the new name also works!! See we can print out the data\n");
+        tfs_seek(hotdog, 0);
+        while(tfs_readByte(hotdog, &s) >= 0) {
+            printf("%c", s);
+        }
+
+
 
         printf("\n\nHere are the disk contents after we have deleted some stuff\n");
         tfs_readdir();
