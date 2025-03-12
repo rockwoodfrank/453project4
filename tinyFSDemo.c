@@ -232,6 +232,21 @@ int main(int argc, char* argv[]) {
             printf("%c", s);
         }
 
+        int hotdog = tfs_openFile("foods/savory/hotdog");
+        if(hotdog < 0) {
+            printf("openFile error (%d)\n", hotdog);
+            exit(EXIT_FAILURE);
+        }
+
+
+        printf("\n\nNow, opening the file with the new name also works!! See we can print out the data\n");
+        tfs_seek(hotdog, 0);
+        while(tfs_readByte(hotdog, &s) >= 0) {
+            printf("%c", s);
+        }
+
+
+
         printf("\n\nHere are the disk contents after we have deleted some stuff\n");
         tfs_readdir();
 
