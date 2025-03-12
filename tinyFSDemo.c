@@ -1,16 +1,29 @@
 #include "tinyFS.h"
 #include "libTinyFS.h"
 
+/* ~ PLEASE READ ~ */
+/* upon the first run of the program, it should create the disk and set it up. Then, the user can look at it and inspect it
+    as part of the demonstration. upon the second run of the program, the contents of the disk will be deleted to demonstrate 
+    that functionality. run make clean to delete the disk again, or delete it manually. */
+
 int status;
 
 int main(int argc, char* argv[]) {
 
-    /* upon the first run of the program, it should create the disk and set it up. Then, the user can look at it and inspect it
-       as part of the demonstration. upon the second run of the program, the contents of the disk will be deleted to demonstrate 
-       that functionality. run make clean to delete the disk again, or delete it manually. */
-        
-    /* if you can't mount... */
+    if((status = tfs_mount("safetyBitWrong.dsk")) < 0) {
+        printf("Mount failed due to corruption (this is the desired output). The reported Error code is (%d)\n", status);
+    }
 
+    if((status = tfs_mount("floatingFreeBlocks.dsk")) < 0) {
+        printf("Mount failed due to corruption (this is the desired output). The reported Error code is (%d)\n", status);
+    }
+
+    if((status = tfs_mount("sizeMismatch.dsk")) < 0) {
+        printf("Mount failed due to corruption (this is the desired output). The reported Error code is (%d)\n", status);
+    }
+
+
+    /* if you can't mount... */
     if(tfs_mount("demo.dsk") < 0) {
         /* make a new disk and set it up */
         status = tfs_mkfs("demo.dsk", 8192);
@@ -124,7 +137,7 @@ int main(int argc, char* argv[]) {
 
 
         /* Not lets read what we just wrote !! The recipe for delicious waffles :) */
-        printf("Reading the recipe for waffles\n");
+        printf("\n\nReading the recipe for waffles\n");
 
         char s;
         int i = 0;
@@ -203,6 +216,7 @@ int main(int argc, char* argv[]) {
             exit(EXIT_FAILURE);
         }
 
+        /* remove directories */
         status = tfs_removeAll("foods/sweet");
         if(status < 0) {
             printf("removeAll error (%d)\n", status);

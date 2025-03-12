@@ -27,19 +27,18 @@ int _check_block_con(int diskNum, int block, int block_type, char* blocks_checke
     if (block_type == SUPERBLOCK) {
         /* check the first four bytes */
         if (byte0 != SUPERBLOCK || byte1 != SAFETY_HEX || byte3 != EMPTY_TABLEVAL) {
-            printf("(30)\n");
             return ERR_BAD_DISK;
         }
 
         if (byte2 != 0) {
-            if ((ERR = _check_block_con(diskNum, byte2, FREE, blocks_checked) < 0)) {
+            if ((ERR = _check_block_con(diskNum, byte2, FREE, blocks_checked)) < 0) {
                 return ERR;
             }
         }
 
         // check that everything in the inode is a data block / inode block (for dirs)
         for (int i = FIRST_SUPBLOCK_INODE_LOC; i < MAX_SUPBLOCK_INODES + FIRST_SUPBLOCK_INODE_LOC; i++) {
-            if ((buffer[i] != 0) && (ERR = _check_block_con(diskNum, buffer[i], INODE, blocks_checked) < 0)) {
+            if ((buffer[i] != 0) && ((ERR = _check_block_con(diskNum, buffer[i], INODE, blocks_checked)) < 0)) {
                 return ERR;
             }
         }
@@ -47,20 +46,17 @@ int _check_block_con(int diskNum, int block, int block_type, char* blocks_checke
     else if (block_type == INODE) {
         /* check the first four bytes */
         if (byte0 != INODE || byte1 != SAFETY_HEX || byte2 != EMPTY_TABLEVAL || byte3 != EMPTY_TABLEVAL) {
-            printf("(50)\n");
             return ERR_BAD_DISK;
         }
         /* check that the file type flag is valid */
         int file_type = buffer[FILE_TYPE_FLAG_LOC];
         if (file_type != FILE_TYPE_DIR && file_type != FILE_TYPE_FILE) {
-            printf("(56)\n");
             return ERR_BAD_DISK;
         }
      
         /* check that the name is valid */
         char* filename = buffer + FILE_NAME_LOC;
         if (buffer[FILE_NAME_LOC + FILENAME_LENGTH] != 0 || strlen(filename) <= 0) {
-            printf("(63)\n");
             return ERR_BAD_DISK;
         }
 

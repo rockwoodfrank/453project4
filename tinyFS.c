@@ -106,13 +106,14 @@ int tfs_mount(char* diskname) {
     memset(blocks_checked, 0, num_blocks);
 
     /* Returning an ERRor if the file isn't formatted properly */
-    if (_check_block_con(diskNum, SUPERBLOCK_DISKLOC, SUPERBLOCK, blocks_checked) < 0) {
+    if ((ERR = _check_block_con(diskNum, SUPERBLOCK_DISKLOC, SUPERBLOCK, blocks_checked)) < 0) {
         return ERR_BAD_DISK;
     }
 
     /* Checks to see if every block is marked as checked */
     for (int i = 0; i < num_blocks; i++) {
         if (blocks_checked[i] == 0) {
+            printf("116\n");
             return ERR_BAD_DISK;
         }
     }
