@@ -144,7 +144,7 @@ int tfs_unmount() {
 
     memset(fd_table, 0, FD_TABLESIZE);
 
-    return returnVal;
+    return returnVal; 
 }
 
 fileDescriptor tfs_openFile(char *name) {
