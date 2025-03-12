@@ -2,6 +2,7 @@
 #define LIBTINY_H
 
 #include "libDisk.h"
+#include "libTinyFS.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -119,7 +120,10 @@ typedef struct tinyFS {
 
 /* use as a special type to keep track of files. This value serves as the
 index into the file descriptor table */
+#ifndef FD_H_TD
+#define FD_H_TD
 typedef int fileDescriptor;
+#endif
 
 extern int ERR;
 extern tinyFS* mounted;

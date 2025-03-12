@@ -5,6 +5,10 @@
 #include "tinyFS_errno.h"
 #include "libTinyFS_helpers.h"
 
+#ifndef FD_H_TD
+#define FD_H_TD
+typedef int fileDescriptor;
+#endif
 
 /* Makes a blank TinyFS file system of size nBytes on the unix file
 specified by ‘filename’. This function should use the emulated disk
